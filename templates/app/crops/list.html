@@ -1,0 +1,35 @@
+{% extends "app/base.html" %}
+{% block page_title %}Safras{% endblock %}
+{% block top_actions %}
+  <a class="btn btn-primary" href="{% url 'app_crops_new' %}">Nova safra</a>
+{% endblock %}
+{% block content %}
+  <section class="card card-pad">
+    <div style="overflow:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:640px">
+        <thead>
+          <tr style="text-align:left;color:var(--text-muted);font-size:0.85rem">
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Nome</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Início</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Fim</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in seasons %}
+            <tr>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)"><strong>{{ s.name }}</strong></td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ s.start_date|date:"d/m/Y" }}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ s.end_date|date:"d/m/Y" }}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border);text-align:right">
+                <a class="btn btn-ghost" style="padding:0.45rem 0.7rem" href="{% url 'app_crops_edit' s.id %}">Editar</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" style="padding:1rem;color:var(--text-muted)">Nenhuma safra cadastrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Garantias Rurais{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Controle de garantias rurais georreferenciadas — matrículas, áreas e safras em um só lugar.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #eef3ee;
+      --bg-hero: linear-gradient(145deg, #e8f0ea 0%, #dde8e0 45%, #d4e4dd 100%);
+      --surface: #ffffff;
+      --text: #132818;
+      --text-muted: #4a5f52;
+      --accent: #1b6b4a;
+      --accent-hover: #14573c;
+      --accent-soft: rgba(27, 107, 74, 0.12);
+      --border: rgba(19, 40, 24, 0.1);
+      --shadow: 0 4px 24px rgba(19, 40, 24, 0.08);
+      --shadow-lg: 0 20px 50px rgba(19, 40, 24, 0.12);
+      --radius: 14px;
+      --font: "DM Sans", system-ui, sans-serif;
+      --font-display: "Instrument Sans", "DM Sans", system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+    .container { width: min(1120px, 92vw); margin: 0 auto; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(27, 107, 74, 0.35);
+    }
+    .btn-primary:hover { background: var(--accent-hover); color: #fff; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--accent-soft); border-color: transparent; }
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>

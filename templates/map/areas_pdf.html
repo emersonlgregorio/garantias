@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Mapa — matrículas</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 13pt;
+      font-weight: 700;
+      margin: 0 0 0.35rem;
+    }
+    .meta {
+      font-size: 9.5pt;
+      color: #444;
+      margin: 0 0 0.75rem;
+      line-height: 1.45;
+    }
+    .shot-title {
+      font-size: 10pt;
+      font-weight: 600;
+      margin: 0.5rem 0 0.35rem;
+    }
+    .shot-wrap {
+      border: 1px solid #c5c5c5;
+      border-radius: 4px;
+      background: #f4f4f4;
+      overflow: hidden;
+      margin-bottom: 0.65rem;
+    }
+    .shot-wrap img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .svg-title {
+      font-size: 10pt;
+      font-weight: 600;
+      margin: 0.65rem 0 0.35rem;
+    }
+    .svg-box {
+      border: 1px solid #c5c5c5;
+      border-radius: 4px;
+      background: #fafafa;
+    }
+    svg { display: block; width: 100%; height: auto; }
+    .foot {
+      margin-top: 0.5rem;
+      font-size: 8pt;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mapa de matrículas</h1>
+  <p class="meta">
+    <strong>Fazenda:</strong> {{ property_label }}<br>
+    <strong>Safra:</strong> {{ crop_season_label }}<br>
+    <strong>Garantia:</strong> {{ guarantee_label }}<br>
+    <strong>Matrículas neste mapa:</strong> {{ matriculas_list }}
+  </p>
+  {% if has_map_snapshot %}
+  <p class="shot-title">Vista do mapa (captura da tela)</p>
+  <div class="shot-wrap">
+    <img src="{{ map_image_data_uri }}" alt="Captura do mapa Leaflet">
+  </div>
+  {% endif %}
+  <p class="svg-title">Polígonos (referência vetorial)</p>
+  <div class="svg-box">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {{ vb_w }} {{ vb_h }}" width="{{ vb_w }}" height="{{ vb_h }}" aria-label="Polígonos">
+      {% for poly in svg_polys %}
+      <path d="{{ poly.path }}" fill="{{ poly.fill }}" fill-opacity="0.38" stroke="{{ poly.stroke }}" stroke-width="1.6" fill-rule="evenodd"></path>
+      {% endfor %}
+      {% for lbl in labels %}
+      <text x="{{ lbl.x }}" y="{{ lbl.y }}" font-size="11" font-weight="700" fill="#111827" text-anchor="middle">{{ lbl.text }}</text>
+      {% endfor %}
+    </svg>
+  </div>
+  <p class="foot">{% if has_map_snapshot %}A captura depende dos tiles carregados no navegador (satélite ou mapa). {% endif %}Geometrias em SVG para conferência de contornos.</p>
+</body>
+</html>

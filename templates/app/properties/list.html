@@ -1,0 +1,38 @@
+{% extends "app/base.html" %}
+{% block page_title %}Fazendas{% endblock %}
+{% block top_actions %}
+  <a class="btn btn-primary" href="{% url 'app_properties_new' %}">Nova fazenda</a>
+{% endblock %}
+{% block content %}
+  <section class="card card-pad">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+      <div style="color:var(--text-muted)">Cadastre a fazenda (descrição e cidade) antes de desenhar talhões no mapa. A matrícula é informada ao salvar cada área.</div>
+    </div>
+    <div style="overflow:auto;margin-top:1rem">
+      <table style="width:100%;border-collapse:collapse;min-width:720px">
+        <thead>
+          <tr style="text-align:left;color:var(--text-muted);font-size:0.85rem">
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Descrição</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Cidade</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Criada em</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in properties %}
+            <tr>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)"><strong>{{ p.description }}</strong></td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ p.city }}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ p.created_at|date:"d/m/Y" }}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border);text-align:right">
+                <a class="btn btn-ghost" style="padding:0.45rem 0.7rem" href="{% url 'app_properties_edit' p.id %}">Editar</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" style="padding:1rem;color:var(--text-muted)">Nenhuma fazenda cadastrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

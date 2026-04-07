@@ -1,0 +1,99 @@
+{% extends "marketing/base.html" %}
+{% block title %}Criar conta — Garantias Rurais{% endblock %}
+{% block extra_styles %}
+    .auth-wrap { min-height: 100vh; display: flex; flex-direction: column; }
+    .auth-top { padding: 1rem 0; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.7); backdrop-filter: blur(8px); }
+    .auth-top .inner { display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; color: var(--text); }
+    .logo span { color: var(--accent); }
+    .auth-main { flex: 1; display: flex; align-items: center; padding: 2.5rem 0 3rem; }
+    .auth-card {
+      width: 100%; max-width: 440px; margin: 0 auto;
+      background: var(--surface); padding: 2rem; border-radius: var(--radius);
+      box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+    }
+    .auth-card h1 { font-family: var(--font-display); font-size: 1.55rem; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
+    .auth-card .sub { color: var(--text-muted); font-size: 0.95rem; margin: 0 0 1.5rem; }
+    .form-row { margin-bottom: 1rem; }
+    .form-row label { display: block; font-weight: 500; font-size: 0.88rem; margin-bottom: 0.35rem; color: var(--text); }
+    .form-row input {
+      width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border); border-radius: 10px;
+      font-family: inherit; font-size: 1rem; background: #fafcfb;
+    }
+    .form-row input:focus {
+      outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+      background: #fff;
+    }
+    .form-row-grid { display: grid; gap: 1rem; }
+    @media (min-width: 480px) { .form-row-grid.two { grid-template-columns: 1fr 1fr; } }
+    .errorlist { list-style: none; padding: 0; margin: 0.35rem 0 0; font-size: 0.85rem; color: #b42318; }
+    .nonfield { background: #fef2f2; border: 1px solid #fecdca; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem; color: #7f1d1d; }
+    .submit-row { margin-top: 1.5rem; }
+    .submit-row .btn-primary { width: 100%; padding: 0.85rem; font-size: 1rem; }
+    .footer-note { text-align: center; margin-top: 1.25rem; font-size: 0.9rem; color: var(--text-muted); }
+{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+  <header class="auth-top">
+    <div class="container inner">
+      <a href="{% url 'landing' %}" class="logo">terra<span>gis</span> garantias</a>
+      <a href="{% url 'login' %}" class="btn btn-ghost">Entrar</a>
+    </div>
+  </header>
+  <main class="auth-main">
+    <div class="container">
+      <div class="auth-card">
+        <h1>Criar conta</h1>
+        <p class="sub">Cadastre sua empresa e o primeiro usuário administrador.</p>
+        <form method="post" action="">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="nonfield">{{ form.non_field_errors }}</div>
+          {% endif %}
+          <div class="form-row">
+            <label for="id_company_name">{{ form.company_name.label }}</label>
+            {{ form.company_name }}
+            {{ form.company_name.errors }}
+          </div>
+          <div class="form-row">
+            <label for="id_cnpj">{{ form.cnpj.label }}</label>
+            {{ form.cnpj }}
+            {{ form.cnpj.errors }}
+          </div>
+          <div class="form-row">
+            <label for="id_email">{{ form.email.label }}</label>
+            {{ form.email }}
+            {{ form.email.errors }}
+          </div>
+          <div class="form-row-grid two">
+            <div class="form-row">
+              <label for="id_first_name">{{ form.first_name.label }}</label>
+              {{ form.first_name }}
+              {{ form.first_name.errors }}
+            </div>
+            <div class="form-row">
+              <label for="id_last_name">{{ form.last_name.label }}</label>
+              {{ form.last_name }}
+              {{ form.last_name.errors }}
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="id_password1">{{ form.password1.label }}</label>
+            {{ form.password1 }}
+            {{ form.password1.errors }}
+          </div>
+          <div class="form-row">
+            <label for="id_password2">{{ form.password2.label }}</label>
+            {{ form.password2 }}
+            {{ form.password2.errors }}
+          </div>
+          <div class="submit-row">
+            <button type="submit" class="btn btn-primary">Criar empresa e acessar</button>
+          </div>
+        </form>
+        <p class="footer-note">Já possui conta? <a href="{% url 'login' %}">Entrar</a></p>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}

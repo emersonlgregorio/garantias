@@ -1,0 +1,149 @@
+{% extends "marketing/base.html" %}
+{% block title %}Garantias Rurais — Gestão georreferenciada{% endblock %}
+{% block extra_styles %}
+    .site-header {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(238, 243, 238, 0.85);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .site-header .inner { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0; }
+    .logo { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; color: var(--text); letter-spacing: -0.02em; }
+    .logo span { color: var(--accent); }
+    .nav-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    .hero {
+      background: var(--bg-hero);
+      padding: 4rem 0 5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: ""; position: absolute; inset: -40% -20% auto auto;
+      width: 70%; height: 120%;
+      background: radial-gradient(ellipse, rgba(27, 107, 74, 0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-grid { display: grid; gap: 2.5rem; align-items: center; position: relative; z-index: 1; }
+    @media (min-width: 900px) {
+      .hero-grid { grid-template-columns: 1.05fr 0.95fr; gap: 3rem; }
+    }
+    .badge {
+      display: inline-block; font-size: 0.8rem; font-weight: 600;
+      color: var(--accent); background: var(--accent-soft); padding: 0.35rem 0.85rem; border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 3.1rem);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 1rem;
+      font-weight: 700;
+    }
+    .hero-lead { font-size: 1.125rem; color: var(--text-muted); max-width: 36rem; margin: 0 0 1.75rem; }
+    .hero-cta { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .hero-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+    }
+    .hero-card h3 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; }
+    .hero-card p { margin: 0; font-size: 0.9rem; color: var(--text-muted); }
+    .mini-map {
+      height: 180px; border-radius: 10px; margin-top: 1.25rem;
+      background:
+        linear-gradient(135deg, rgba(27,107,74,0.15) 0%, rgba(27,107,74,0.05) 100%),
+        repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(255,255,255,0.4) 20px, rgba(255,255,255,0.4) 21px),
+        repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(255,255,255,0.25) 20px, rgba(255,255,255,0.25) 21px);
+      border: 1px dashed rgba(27, 107, 74, 0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; color: var(--accent); font-weight: 600;
+    }
+    .features { padding: 4rem 0 5rem; }
+    .features h2 { font-family: var(--font-display); text-align: center; font-size: 1.85rem; margin: 0 0 2.5rem; letter-spacing: -0.02em; }
+    .feature-grid { display: grid; gap: 1.25rem; }
+    @media (min-width: 700px) { .feature-grid { grid-template-columns: repeat(3, 1fr); } }
+    .feature-card {
+      background: var(--surface); border-radius: var(--radius); padding: 1.5rem;
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .feature-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+    .feature-card .icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
+    .feature-card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+    .feature-card p { margin: 0; font-size: 0.92rem; color: var(--text-muted); }
+    .cta-band {
+      background: var(--accent); color: #fff; padding: 3rem 0; text-align: center; border-radius: var(--radius);
+      margin: 0 0 4rem; box-shadow: var(--shadow-lg);
+    }
+    .cta-band h2 { margin: 0 0 0.75rem; font-family: var(--font-display); font-size: 1.65rem; }
+    .cta-band p { margin: 0 0 1.25rem; opacity: 0.92; max-width: 32rem; margin-inline: auto; }
+    .cta-band .btn-primary { background: #fff; color: var(--accent); box-shadow: none; }
+    .cta-band .btn-primary:hover { background: #f0f7f2; color: var(--accent-hover); }
+    .site-footer { padding: 2rem 0; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; text-align: center; }
+{% endblock %}
+{% block body %}
+<header class="site-header">
+  <div class="container inner">
+    <a href="{% url 'landing' %}" class="logo">terra<span>gis</span> garantias</a>
+    <nav class="nav-actions">
+      <a href="{% url 'login' %}" class="btn btn-ghost">Entrar</a>
+      <a href="{% url 'signup' %}" class="btn btn-primary">Criar conta grátis</a>
+    </nav>
+  </div>
+</header>
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <span class="badge">SaaS multiempresa · PostGIS</span>
+      <h1>Garantias rurais no mapa, com matrícula e safras organizadas.</h1>
+      <p class="hero-lead">
+        Cadastre imóveis, desenhe polígonos no mapa e vincule garantias e empenhos por safra — tudo isolado por empresa, pronto para escalar.
+      </p>
+      <div class="hero-cta">
+        <a href="{% url 'signup' %}" class="btn btn-primary">Começar agora</a>
+        <a href="{% url 'login' %}" class="btn btn-ghost">Já tenho conta</a>
+      </div>
+    </div>
+    <div class="hero-card">
+      <h3>Visão geográfica</h3>
+      <p>Áreas em GeoJSON, armazenadas em PostGIS. Ideal para crédito rural e compliance.</p>
+      <div class="mini-map">Mapa · polígonos · áreas</div>
+    </div>
+  </div>
+</section>
+<section class="features">
+  <div class="container">
+    <h2>O que você ganha</h2>
+    <div class="feature-grid">
+      <article class="feature-card">
+        <div class="icon">📍</div>
+        <h3>Matrículas e áreas</h3>
+        <p>Controle por cartório, município e UF, com geometrias MultiPolygon em WGS84.</p>
+      </article>
+      <article class="feature-card">
+        <div class="icon">📋</div>
+        <h3>Garantias e safras</h3>
+        <p>Tipos de garantia, valores e empenhos com limite automático por imóvel e safra.</p>
+      </article>
+      <article class="feature-card">
+        <div class="icon">🔐</div>
+        <h3>Multiempresa</h3>
+        <p>Dados isolados por empresa; API REST e JWT para integrar com outros sistemas.</p>
+      </article>
+    </div>
+  </div>
+</section>
+<div class="container">
+  <section class="cta-band">
+    <h2>Pronto para centralizar suas garantias?</h2>
+    <p>Crie sua empresa e o usuário administrador em poucos minutos.</p>
+    <a href="{% url 'signup' %}" class="btn btn-primary">Criar minha conta</a>
+  </section>
+</div>
+<footer class="site-footer">
+  <div class="container">Garantias Rurais · MVP evoluível</div>
+</footer>
+{% endblock %}

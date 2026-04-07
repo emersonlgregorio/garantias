@@ -1,0 +1,1943 @@
+{% extends "app/base.html" %}
+{% block page_title %}Matrículas{% endblock %}
+{% block top_actions %}
+  <span class="tag">Desenho de talhões por fazenda</span>
+{% endblock %}
+{% block content %}
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css" crossorigin="">
+  <style>
+    /* Cor do texto é definida em JS (mesma cor da borda do polígono). Sem fundo. */
+    .leaflet-tooltip.area-matricula-label {
+      padding: 1px 4px;
+      margin: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0;
+      font-weight: 800;
+      font-size: 0.88rem;
+      letter-spacing: 0.02em;
+      pointer-events: none;
+      max-width: 14rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      /* Teste: sombra em cinza escuro (contraste em áreas claras do mapa) */
+      text-shadow:
+        0 0 2px rgba(45, 45, 48, 0.95),
+        0 0 5px rgba(45, 45, 48, 0.65),
+        0 1px 2px rgba(28, 28, 30, 0.85),
+        1px 1px 0 rgba(38, 38, 42, 0.55);
+    }
+    .leaflet-tooltip.area-matricula-label::before { display: none; }
+    #btnDraw:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .poly-context-menu {
+      position: fixed;
+      z-index: 12000;
+      min-width: 12.5rem;
+      padding: 6px;
+      background: var(--surface, #fff);
+      border: 1px solid var(--border, #e2e8e0);
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+    }
+    .poly-context-menu .ctx-btn {
+      width: 100%;
+      margin: 0;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.9rem;
+      text-align: left;
+      border: 1px solid var(--border, #e2e8e0);
+      background: #fafcfb;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .poly-context-menu .ctx-btn:hover {
+      background: var(--accent-soft, rgba(27, 107, 74, 0.12));
+      border-color: rgba(27, 107, 74, 0.25);
+    }
+    .poly-context-menu .ctx-btn.primary {
+      background: var(--accent, #1b6b4a);
+      color: #fff;
+      border-color: transparent;
+    }
+    .poly-context-menu .ctx-btn.primary:hover {
+      filter: brightness(1.05);
+    }
+    .poly-context-menu .ctx-btn.danger {
+      color: #b42318;
+      border-color: rgba(180, 35, 24, 0.35);
+    }
+    .poly-context-menu .ctx-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    #polyCtxMain { display: grid; gap: 6px; }
+    .map-insert-details {
+      border: 1px solid var(--border, #e2e8e0);
+      border-radius: 12px;
+      padding: 0.65rem 1rem 1rem;
+      background: #fafcfb;
+    }
+    .map-insert-summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      list-style: none;
+      user-select: none;
+    }
+    .map-insert-summary::-webkit-details-marker { display: none; }
+    .map-insert-fields {
+      margin-top: 1rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+    .map-insert-fields label { display: grid; gap: 0.25rem; }
+    .map-insert-fields label > span { font-size: 0.85rem; color: var(--text-muted); }
+    .map-insert-fields input,
+    .map-insert-fields select {
+      padding: 0.55rem 0.65rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    .map-toolbar-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0.85rem;
+    }
+    .map-property-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 1.5rem;
+      align-items: end;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border, #e2e8e0);
+    }
+    .map-property-bar > .map-property-bar__farm label {
+      display: grid;
+      gap: 0.25rem;
+    }
+    .map-property-bar > .map-property-bar__farm label > span { font-size: 0.85rem; color: var(--text-muted); }
+    .map-property-bar > .map-property-bar__farm select {
+      padding: 0.55rem 0.65rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-family: inherit;
+      font-size: 1rem;
+      width: 100%;
+    }
+    .map-property-bar__print label {
+      display: grid;
+      gap: 0.25rem;
+    }
+    .map-property-bar__print label > span { font-size: 0.85rem; color: var(--text-muted); }
+    .area-print-dd {
+      position: relative;
+      width: 100%;
+    }
+    .area-print-dd__trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      width: 100%;
+      min-height: 42px;
+      padding: 0.35rem 0.65rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      text-align: left;
+      cursor: pointer;
+    }
+    .area-print-dd__trigger:hover {
+      border-color: rgba(27, 107, 74, 0.35);
+    }
+    .area-print-dd.is-open .area-print-dd__trigger {
+      border-color: rgba(27, 107, 74, 0.45);
+      box-shadow: 0 0 0 2px rgba(27, 107, 74, 0.1);
+    }
+    .area-print-dd__trigger-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .area-print-dd__chevron {
+      flex-shrink: 0;
+      opacity: 0.55;
+      font-size: 0.75rem;
+    }
+    .area-print-dd__panel {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 12500;
+      background: var(--surface, #fff);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14);
+      max-height: 280px;
+      display: flex;
+      flex-direction: column;
+    }
+    .area-print-dd__panel[hidden] {
+      display: none !important;
+    }
+    .area-print-dd__search {
+      margin: 0.5rem 0.5rem 0.35rem;
+      padding: 0.45rem 0.55rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+    .area-print-dd__list {
+      list-style: none;
+      margin: 0;
+      padding: 0.25rem 0 0.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .area-print-dd__list li {
+      margin: 0;
+    }
+    .area-print-dd__list label {
+      display: flex !important;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.65rem;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-weight: 400;
+    }
+    .area-print-dd__list label:hover {
+      background: rgba(27, 107, 74, 0.08);
+    }
+    .area-print-dd__list input {
+      flex-shrink: 0;
+    }
+    .area-print-dd__footer {
+      padding: 0.35rem 0.5rem 0.5rem;
+      border-top: 1px solid var(--border, #e2e8e0);
+    }
+    .area-print-dd__linkbtn {
+      background: none;
+      border: none;
+      padding: 0.25rem 0;
+      font-size: 0.85rem;
+      color: var(--accent, #1b6b4a);
+      cursor: pointer;
+      text-decoration: underline;
+      font-family: inherit;
+    }
+    .map-property-bar__print-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.65rem;
+      min-width: 0;
+    }
+    .map-property-bar__print-select-wrap {
+      flex: 1;
+      min-width: 0;
+    }
+    .map-property-bar__print-row .btn {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    @media (max-width: 520px) {
+      .map-property-bar__print-row {
+        flex-wrap: wrap;
+      }
+      .map-property-bar__print-select-wrap {
+        flex: 1 1 100%;
+      }
+      .map-property-bar__print-row .btn {
+        width: 100%;
+      }
+    }
+    @media (max-width: 960px) {
+      .map-property-bar { grid-template-columns: 1fr; }
+    }
+    .map-insert-row-primary .btn-draw-wrap {
+      display: flex;
+      align-items: flex-end;
+      margin-left: auto;
+    }
+    .map-status-text {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+    @media (max-width: 720px) {
+      .map-insert-row-primary .btn-draw-wrap { margin-left: 0; width: 100%; }
+      .map-insert-row-primary .btn-draw-wrap .btn { width: 100%; }
+      .map-status-text { margin-left: 0; width: 100%; }
+    }
+    #msg { color: var(--text-muted); line-height: 1.45; }
+    #msg.ok { color: var(--accent, #1b6b4a); }
+    #msg.err { color: #b42318; }
+    .area-data-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 13000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .area-data-modal.is-open { display: flex; }
+    .area-data-modal__backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 20, 0.4);
+    }
+    .area-data-modal__panel {
+      position: relative;
+      z-index: 1;
+      width: min(440px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      padding: 1.25rem;
+      background: var(--surface, #fff);
+      border-radius: 14px;
+      border: 1px solid var(--border, #e2e8e0);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+    }
+    .area-data-modal__panel label { display: grid; gap: 0.35rem; font-weight: 600; font-size: 0.9rem; }
+    .area-data-modal__panel input,
+    .area-data-modal__panel select {
+      padding: 0.55rem 0.65rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fafcfb;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 400;
+    }
+    #mapTipModal { z-index: 13100; }
+    #mapPrintModal { z-index: 13200; }
+    .map-print-modal__radio-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+    .map-print-modal__radio-row label {
+      display: inline-flex !important;
+      flex-direction: row !important;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 500;
+      font-size: 0.92rem;
+    }
+    #mapTipModal .map-tip-modal__body {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.55;
+      color: var(--text-muted, #64748b);
+    }
+    #mapEditBanner {
+      display: none;
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1100;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 0.65rem 1rem;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid var(--border, #e2e8e0);
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+      font-size: 0.9rem;
+      max-width: min(520px, 94vw);
+    }
+    #mapEditBanner.is-visible {
+      display: flex;
+    }
+  </style>
+
+  <section class="card card-pad" style="margin-bottom:1rem">
+    <div class="map-property-bar">
+      <div class="map-property-bar__farm">
+        <label>
+          <span>Fazenda</span>
+          <select id="propertyId" aria-label="Fazenda para exibir e cadastrar áreas"></select>
+        </label>
+      </div>
+      <div class="map-property-bar__print">
+        <label>
+          <span>Selecionar matrículas</span>
+          <div class="map-property-bar__print-row">
+            <div class="map-property-bar__print-select-wrap">
+              <div class="area-print-dd" id="areaPrintDropdown">
+                <button type="button" class="area-print-dd__trigger" id="areaPrintTrigger" aria-expanded="false" aria-haspopup="listbox" aria-controls="areaPrintPanel">
+                  <span class="area-print-dd__trigger-text" id="areaPrintTriggerLabel">Selecionar matrículas…</span>
+                  <span class="area-print-dd__chevron" aria-hidden="true">▾</span>
+                </button>
+                <div class="area-print-dd__panel" id="areaPrintPanel" role="listbox" aria-multiselectable="true" hidden>
+                  <input type="search" class="area-print-dd__search" id="areaPrintSearch" placeholder="Pesquisar matrícula…" autocomplete="off" aria-label="Filtrar lista de matrículas">
+                  <ul class="area-print-dd__list" id="areaPrintList"></ul>
+                  <div class="area-print-dd__footer">
+                    <button type="button" class="area-print-dd__linkbtn" id="areaPrintShowAll">Mostrar todas no mapa</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button type="button" id="btnPrintMap" class="btn btn-ghost">Imprimir mapa</button>
+          </div>
+        </label>
+      </div>
+    </div>
+    <details id="mapInsertDetails" class="map-insert-details">
+      <summary class="map-insert-summary">Nova Matrícula</summary>
+      <div class="map-insert-fields map-insert-row-primary">
+        <label>
+          <span>Matrícula</span>
+          <input id="areaMatricula" type="text" placeholder="Ex.: 12.345" autocomplete="off" required>
+        </label>
+        <label style="min-width:180px;flex:1">
+          <span>Descrição (opcional)</span>
+          <input id="areaDesc" type="text" placeholder="talhão, observação…" autocomplete="off">
+        </label>
+        <label>
+          <span>Hectares</span>
+          <input id="areaHectares" type="number" step="0.0001" min="0.0001" placeholder="ex.: 120,5" autocomplete="off" required>
+        </label>
+        <label>
+          <span>Cor</span>
+          <input id="areaColor" type="color" value="#3388ff" style="height:40px;width:52px;padding:2px;border:1px solid var(--border)">
+        </label>
+        <div class="btn-draw-wrap">
+          <button type="button" id="btnDraw" class="btn btn-primary" disabled>Desenhar polígono</button>
+        </div>
+      </div>
+      <div class="map-toolbar-row">
+        <button type="button" id="btnImportGeo" class="btn btn-ghost">Importar matrícula</button>
+        <input type="file" id="importGeoFile" accept=".kml,.kmz,.zip,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/zip" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" tabindex="-1" aria-hidden="true">
+        <button type="button" id="btnReload" class="btn btn-ghost">Recarregar áreas</button>
+        <button type="button" id="btnMapTip" class="btn btn-ghost" title="Clique para ver as dicas completas" aria-label="Abrir dicas de uso" aria-haspopup="dialog">ⓘ</button>
+        <span id="mapStatus" class="map-status-text" aria-live="polite">Status: —</span>
+      </div>
+      <div style="margin-top:0.5rem;min-height:1.25rem">
+        <span id="msg" role="status"></span>
+      </div>
+    </details>
+  </section>
+
+  <div id="polyContextMenu" class="poly-context-menu" style="display:none" role="menu" aria-hidden="true">
+    <div id="polyCtxMain">
+      <button type="button" id="polyCtxEdit" class="ctx-btn">Editar geometria</button>
+      <button type="button" id="polyCtxEditData" class="ctx-btn">Editar dados</button>
+      <button type="button" id="polyCtxColor" class="ctx-btn">Mudar cor</button>
+      <button type="button" id="polyCtxDelete" class="ctx-btn danger">Excluir área</button>
+    </div>
+    <div id="polyCtxColorPanel" style="display:none">
+      <div style="font-size:0.85rem;color:var(--text-muted,#64748b);margin-bottom:6px">Nova cor da borda / preenchimento</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <input type="color" id="polyCtxColorInput" value="#3388ff" style="height:38px;width:52px;border:1px solid var(--border,#e2e8e0);border-radius:8px;padding:2px;cursor:pointer">
+        <button type="button" id="polyCtxColorApply" class="ctx-btn primary" style="width:auto;flex:1;min-width:5rem">Aplicar</button>
+        <button type="button" id="polyCtxColorBack" class="ctx-btn" style="width:auto;min-width:4rem">Voltar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="areaDataModal" class="area-data-modal" aria-hidden="true">
+    <div class="area-data-modal__backdrop" id="areaDataModalBackdrop" role="presentation"></div>
+    <div class="area-data-modal__panel" role="dialog" aria-labelledby="areaDataModalTitle">
+      <h2 id="areaDataModalTitle" style="margin:0 0 1rem;font-size:1.12rem;font-family:var(--font-display)">Editar dados da área</h2>
+      <form id="areaDataForm" style="display:grid;gap:0.85rem">
+        <label>
+          Fazenda
+          <select id="modalAreaProperty"></select>
+        </label>
+        <label>
+          Matrícula
+          <input id="modalAreaMatricula" type="text" required autocomplete="off">
+        </label>
+        <label>
+          Descrição (opcional)
+          <input id="modalAreaDesc" type="text" autocomplete="off">
+        </label>
+        <label>
+          Hectares
+          <input id="modalAreaHectares" type="number" step="0.0001" min="0.0001" placeholder="obrigatório" autocomplete="off" required>
+        </label>
+        <label>
+          Cor
+          <input id="modalAreaColor" type="color" value="#3388ff">
+        </label>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:0.35rem">
+          <button type="button" id="modalAreaSave" class="btn btn-primary">Salvar</button>
+          <button type="button" id="modalAreaCancel" class="btn btn-ghost">Fechar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="mapTipModal" class="area-data-modal" aria-hidden="true">
+    <div class="area-data-modal__backdrop" id="mapTipModalBackdrop" role="presentation"></div>
+    <div class="area-data-modal__panel" role="dialog" aria-labelledby="mapTipModalTitle" aria-modal="true">
+      <h2 id="mapTipModalTitle" style="margin:0 0 0.85rem;font-size:1.12rem;font-family:var(--font-display)">Dicas — Nova matrícula</h2>
+      <p id="mapTipBody" class="map-tip-modal__body"></p>
+      <div style="display:flex;justify-content:flex-end;margin-top:1.1rem">
+        <button type="button" id="mapTipModalClose" class="btn btn-primary">Entendi</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mapPrintModal" class="area-data-modal" aria-hidden="true">
+    <div class="area-data-modal__backdrop" id="mapPrintModalBackdrop" role="presentation"></div>
+    <div class="area-data-modal__panel map-print-modal__panel" role="dialog" aria-labelledby="mapPrintModalTitle" aria-modal="true" style="width:min(480px,100%)">
+      <h2 id="mapPrintModalTitle" style="margin:0 0 1rem;font-size:1.12rem;font-family:var(--font-display)">Imprimir mapa (PDF)</h2>
+      <div style="display:grid;gap:0.85rem">
+        <div>
+          <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.4rem">Tipo de mapa na captura</div>
+          <div class="map-print-modal__radio-row">
+            <label><input type="radio" name="mapPrintBase" value="satellite" checked> Satélite</label>
+            <label><input type="radio" name="mapPrintBase" value="road"> Predefinição (mapa)</label>
+          </div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.35rem">O PDF inclui uma captura da tela com o estilo escolhido, além dos polígonos em vetor.</div>
+        </div>
+        <label>
+          Safra
+          <select id="printModalCropSeason"></select>
+        </label>
+        <label>
+          Garantia
+          <select id="printModalGuarantee"></select>
+        </label>
+        <div style="font-size:0.85rem;color:var(--text-muted)">Só aparecem garantias da fazenda e safra selecionadas. A garantia precisa ter a safra cadastrada.</div>
+      </div>
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:flex-end;margin-top:1.15rem">
+        <button type="button" id="mapPrintModalCancel" class="btn btn-ghost">Cancelar</button>
+        <button type="button" id="mapPrintModalConfirm" class="btn btn-primary">Gerar PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="card" style="overflow:hidden;position:relative">
+    <div id="map" style="height:70vh;min-height:520px;width:100%"></div>
+    <div id="mapEditBanner" aria-live="polite">
+      <span style="color:var(--text-muted)">Arraste os <strong>pontos</strong> ou os marcadores no <strong>meio da borda</strong> para ajustar o formato</span>
+      <button type="button" id="btnEditSave" class="btn btn-primary" style="padding:0.45rem 0.85rem">Salvar no servidor</button>
+      <button type="button" id="btnEditCancel" class="btn btn-ghost" style="padding:0.45rem 0.85rem">Cancelar</button>
+    </div>
+  </section>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js" crossorigin=""></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js" crossorigin=""></script>
+  <script src="https://unpkg.com/shpjs@5.0.2/dist/shp.min.js" crossorigin=""></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin=""></script>
+  <script>
+  (function() {
+    const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const API = "{{ api_root }}";
+    const MAP_PRINT_PDF_URL = "{{ map_print_pdf_url|escapejs }}";
+    const mapProvider = "{{ map_provider|escapejs }}";
+
+    const MAP_TIP_TEXT =
+      'Matrícula e hectares são obrigatórios para desenhar ou importar geometria. Formatos de importação: .kml, .kmz ou .zip do shapefile. ' +
+      'Com o botão direito no polígono você pode editar geometria, dados, cor ou excluir a área (se não houver garantia vinculada). ' +
+      'Use o dropdown ao lado da fazenda para marcar matrículas com caixas de seleção: com duas ou mais marcações o texto mostra \"Vários selecionados\". O mapa exibe só as matrículas marcadas; use \"Mostrar todas no mapa\" para voltar ao mapa completo. Imprimir mapa gera o PDF apenas das selecionadas.';
+
+    (function initMapTipBody() {
+      const tb = document.getElementById('mapTipBody');
+      if (tb) tb.textContent = MAP_TIP_TEXT;
+    })();
+
+    function openMapTipModal() {
+      const m = document.getElementById('mapTipModal');
+      m.classList.add('is-open');
+      m.setAttribute('aria-hidden', 'false');
+      const closeBtn = document.getElementById('mapTipModalClose');
+      if (closeBtn) closeBtn.focus();
+    }
+
+    function closeMapTipModal() {
+      const m = document.getElementById('mapTipModal');
+      m.classList.remove('is-open');
+      m.setAttribute('aria-hidden', 'true');
+    }
+
+    function showMsg(text, ok) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = ok ? 'ok' : 'err';
+    }
+
+    function setMapStatus(count) {
+      const el = document.getElementById('mapStatus');
+      if (!el) return;
+      if (count === null || count === undefined || isNaN(Number(count))) {
+        el.textContent = 'Status: —';
+      } else {
+        el.textContent = 'Status: ' + Number(count) + ' área(s) carregada(s).';
+      }
+    }
+
+    function parseHectaresFormValue() {
+      const raw = document.getElementById('areaHectares').value.trim().replace(/\s/g, '').replace(',', '.');
+      if (raw === '') return { ok: false };
+      const n = parseFloat(raw, 10);
+      if (isNaN(n) || n <= 0) return { ok: false };
+      return { ok: true, value: n };
+    }
+
+    // preferCanvas: html2canvas desloca camadas vetoriais em SVG em relação aos tiles;
+    // no canvas, vetores e mapa compõem como um só (tooltip de matrícula continua em HTML).
+    const map = L.map('map', { preferCanvas: true }).setView([-15.6, -56.1], 5);
+
+    if (map.pm) {
+      map.pm.setGlobalOptions({
+        snappable: true,
+        snapDistance: 15,
+        allowSelfIntersection: false
+      });
+    }
+
+    const tileUrl = "{{ map_tile_url|escapejs }}";
+    const attribution = "{{ map_tile_attribution|escapejs }}";
+    const roadTileUrl = "{{ map_road_tile_url|escapejs }}";
+    const roadAttribution = "{{ map_road_tile_attribution|escapejs }}";
+    const maxZoom = parseInt("{{ map_tile_max_zoom }}", 10) || 19;
+    const baseSatelliteLayer = L.tileLayer(tileUrl, { maxZoom, attribution });
+    const baseRoadLayer = L.tileLayer(roadTileUrl || tileUrl, {
+      maxZoom,
+      attribution: roadAttribution || attribution
+    });
+    let activeBaseLayer = baseSatelliteLayer;
+    activeBaseLayer.addTo(map);
+    let currentMapBaseStyle = 'satellite';
+
+    const labelsUrl = "{{ map_labels_tile_url|escapejs }}";
+    const labelsAttr = "{{ map_labels_attribution|escapejs }}";
+    const labelsOpacity = parseFloat("{{ map_labels_opacity }}");
+    let labelsLayerRef = null;
+    if (labelsUrl) {
+      labelsLayerRef = L.tileLayer(labelsUrl, {
+        maxZoom,
+        attribution: labelsAttr,
+        opacity: isNaN(labelsOpacity) ? 1.0 : labelsOpacity
+      });
+      labelsLayerRef.addTo(map);
+    }
+
+    function setMapBaseStyle(mode) {
+      currentMapBaseStyle = mode === 'road' ? 'road' : 'satellite';
+      map.removeLayer(activeBaseLayer);
+      activeBaseLayer = currentMapBaseStyle === 'road' ? baseRoadLayer : baseSatelliteLayer;
+      activeBaseLayer.addTo(map);
+      if (labelsLayerRef) {
+        if (currentMapBaseStyle === 'road') {
+          map.removeLayer(labelsLayerRef);
+        } else if (!map.hasLayer(labelsLayerRef)) {
+          labelsLayerRef.addTo(map);
+        }
+      }
+      if (editableGroup && map.hasLayer(editableGroup)) editableGroup.bringToFront();
+    }
+
+    function sleepMs(ms) {
+      return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
+    const editableGroup = L.featureGroup().addTo(map);
+    const areaLayersById = new Map();
+    const areaPrintSelectedIds = new Set();
+    const areaPrintMatriculaById = new Map();
+    let lastLoadedAreaFeatures = [];
+    let lastPropertyForPrintFilter = null;
+    const drawControl = new L.Control.Draw({
+      position: 'topright',
+      draw: {
+        polygon: false,
+        polyline: false,
+        rectangle: false,
+        circle: false,
+        marker: false,
+        circlemarker: false
+      },
+      edit: { featureGroup: editableGroup, remove: false }
+    });
+    map.addControl(drawControl);
+
+    const btnDraw = document.getElementById('btnDraw');
+    const areaMatriculaInput = document.getElementById('areaMatricula');
+    const areaHectaresInput = document.getElementById('areaHectares');
+    function syncDrawButtonState() {
+      const ha = parseHectaresFormValue();
+      btnDraw.disabled = !areaMatriculaInput.value.trim() || !ha.ok;
+    }
+    areaMatriculaInput.addEventListener('input', syncDrawButtonState);
+    areaMatriculaInput.addEventListener('change', syncDrawButtonState);
+    areaHectaresInput.addEventListener('input', syncDrawButtonState);
+    areaHectaresInput.addEventListener('change', syncDrawButtonState);
+    syncDrawButtonState();
+
+    document.getElementById('btnMapTip').onclick = function () {
+      openMapTipModal();
+    };
+    document.getElementById('mapTipModalBackdrop').onclick = function () {
+      closeMapTipModal();
+    };
+    document.getElementById('mapTipModalClose').onclick = function () {
+      closeMapTipModal();
+    };
+
+    btnDraw.onclick = function () {
+      if (btnDraw.disabled) {
+        showMsg('Informe matrícula e hectares válidos antes de desenhar.', false);
+        return;
+      }
+      const ha = parseHectaresFormValue();
+      if (!ha.ok) {
+        showMsg('Informe os hectares (número maior que zero).', false);
+        return;
+      }
+      const col = document.getElementById('areaColor').value;
+      new L.Draw.Polygon(map, {
+        allowIntersection: false,
+        shapeOptions: { color: col }
+      }).enable();
+      showMsg('Clique no mapa para desenhar o polígono. Duplo-clique para concluir.', true);
+    };
+
+    async function apiFetch(url, opts) {
+      opts = opts || {};
+      const headers = Object.assign({ 'X-CSRFToken': CSRF }, opts.headers || {});
+      return fetch(url, Object.assign({}, opts, { credentials: 'same-origin', headers: headers }));
+    }
+
+    async function loadProperties() {
+      const res = await apiFetch(API + 'properties/');
+      if (!res.ok) { showMsg('Erro ao carregar fazendas (' + res.status + ')', false); return; }
+      const data = await res.json();
+      const sel = document.getElementById('propertyId');
+      sel.innerHTML = '';
+      const rows = Array.isArray(data) ? data : (data.results || []);
+      for (const p of rows) {
+        const o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = (p.description || '') + ' — ' + (p.city || '');
+        sel.appendChild(o);
+      }
+      if (sel.options.length) await reloadAreas();
+    }
+
+    function paintLabelFromBorderColor(layer, borderColor) {
+      function apply() {
+        const tt = layer.getTooltip && layer.getTooltip();
+        if (!tt) return;
+        const el = tt.getElement && tt.getElement();
+        if (!el) return;
+        el.style.color = borderColor;
+        el.style.background = 'transparent';
+        el.style.border = 'none';
+        el.style.boxShadow = 'none';
+      }
+      layer.on('add', function () { requestAnimationFrame(apply); });
+      requestAnimationFrame(apply);
+    }
+
+    function paintLabelsOnAreaLayer(layer, borderColor) {
+      if (layer instanceof L.Path) paintLabelFromBorderColor(layer, borderColor);
+      else if (layer.eachLayer) {
+        layer.eachLayer(function (sub) {
+          if (sub instanceof L.Path) paintLabelFromBorderColor(sub, borderColor);
+        });
+      }
+    }
+
+    function setFeatureOnLayerTree(layer, apiFeature) {
+      layer.feature = apiFeature;
+      if (layer.eachLayer) {
+        layer.eachLayer(function (sub) {
+          if (sub instanceof L.Path) sub.feature = apiFeature;
+        });
+      }
+    }
+
+    const polyContextMenu = document.getElementById('polyContextMenu');
+    const polyCtxMain = document.getElementById('polyCtxMain');
+    const polyCtxColorPanel = document.getElementById('polyCtxColorPanel');
+    const mapEditBanner = document.getElementById('mapEditBanner');
+    let contextMenuTargetLayer = null;
+    let contextMenuLayer = null;
+    let activeEditRootLayer = null;
+    let activeEditPaths = [];
+    let modalEditLayer = null;
+
+    function syncModalPropertyOptions() {
+      const main = document.getElementById('propertyId');
+      const modal = document.getElementById('modalAreaProperty');
+      modal.innerHTML = '';
+      for (let i = 0; i < main.options.length; i++) {
+        const o = main.options[i];
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.textContent;
+        modal.appendChild(opt);
+      }
+    }
+
+    function openAreaDataModal(layer) {
+      if (!layer || !layer.feature) return;
+      syncModalPropertyOptions();
+      const props = layer.feature.properties || {};
+      document.getElementById('modalAreaProperty').value = String(props.property != null ? props.property : '');
+      document.getElementById('modalAreaMatricula').value = props.matricula || '';
+      document.getElementById('modalAreaDesc').value = props.description || '';
+      const h = props.hectares;
+      document.getElementById('modalAreaHectares').value =
+        h != null && h !== '' ? String(h) : '';
+      document.getElementById('modalAreaColor').value = normalizeHexColor(props.color || '#3388ff');
+      modalEditLayer = layer;
+      const m = document.getElementById('areaDataModal');
+      m.classList.add('is-open');
+      m.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeAreaDataModal() {
+      modalEditLayer = null;
+      const m = document.getElementById('areaDataModal');
+      m.classList.remove('is-open');
+      m.setAttribute('aria-hidden', 'true');
+    }
+
+    function hidePolyContextMenu() {
+      polyContextMenu.style.display = 'none';
+      polyContextMenu.setAttribute('aria-hidden', 'true');
+      contextMenuTargetLayer = null;
+      contextMenuLayer = null;
+      polyCtxMain.style.display = 'grid';
+      polyCtxColorPanel.style.display = 'none';
+    }
+
+    function refreshContextMenuActions(layer) {
+      const feat = layer && layer.feature;
+      const props = (feat && feat.properties) || {};
+      const n = Number(props.linked_guarantee_count) || 0;
+      const delBtn = document.getElementById('polyCtxDelete');
+      delBtn.disabled = n > 0;
+      delBtn.title = n > 0
+        ? 'Exclusão bloqueada: há garantia vinculada a esta área.'
+        : '';
+    }
+
+    function showPolyContextMenu(clientX, clientY, layer) {
+      contextMenuTargetLayer = layer;
+      contextMenuLayer = layer;
+      refreshContextMenuActions(layer);
+      polyCtxMain.style.display = 'grid';
+      polyCtxColorPanel.style.display = 'none';
+      polyContextMenu.style.display = 'block';
+      polyContextMenu.style.visibility = 'hidden';
+      polyContextMenu.setAttribute('aria-hidden', 'false');
+      polyContextMenu.style.left = '0px';
+      polyContextMenu.style.top = '0px';
+      requestAnimationFrame(function () {
+        const w = polyContextMenu.offsetWidth;
+        const h = polyContextMenu.offsetHeight;
+        const x = Math.min(clientX, window.innerWidth - w - 8);
+        const y = Math.min(clientY, window.innerHeight - h - 8);
+        polyContextMenu.style.left = Math.max(8, x) + 'px';
+        polyContextMenu.style.top = Math.max(8, y) + 'px';
+        polyContextMenu.style.visibility = 'visible';
+      });
+    }
+
+    document.addEventListener('click', function (ev) {
+      if (polyContextMenu.style.display !== 'none' && !polyContextMenu.contains(ev.target)) {
+        hidePolyContextMenu();
+      }
+      const ddPrint = document.getElementById('areaPrintDropdown');
+      if (ddPrint && isAreaPrintDropdownOpen() && !ddPrint.contains(ev.target)) {
+        closeAreaPrintDropdown();
+      }
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape') return;
+      if (isAreaPrintDropdownOpen()) {
+        closeAreaPrintDropdown();
+        return;
+      }
+      if (document.getElementById('mapPrintModal').classList.contains('is-open')) {
+        closeMapPrintModal();
+        return;
+      }
+      if (document.getElementById('mapTipModal').classList.contains('is-open')) {
+        closeMapTipModal();
+        return;
+      }
+      if (document.getElementById('areaDataModal').classList.contains('is-open')) {
+        closeAreaDataModal();
+        return;
+      }
+      hidePolyContextMenu();
+    });
+
+    document.getElementById('areaPrintTrigger').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (isAreaPrintDropdownOpen()) closeAreaPrintDropdown();
+      else openAreaPrintDropdown();
+    });
+    document.getElementById('areaPrintShowAll').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      areaPrintSelectedIds.clear();
+      const cbs = document.querySelectorAll('#areaPrintList input[type="checkbox"]');
+      for (let i = 0; i < cbs.length; i++) cbs[i].checked = false;
+      updateAreaPrintTriggerLabel();
+      applyMapMatriculaFilter();
+      fitMapToVisibleAreas();
+      closeAreaPrintDropdown();
+    });
+    document.getElementById('areaPrintSearch').addEventListener('input', filterAreaPrintListBySearch);
+
+    function bindMatriculaOnLayer(feature, layer) {
+      const matricula = (feature.properties && feature.properties.matricula) || '—';
+      const desc = feature.properties && feature.properties.description;
+      const ha = feature.properties && feature.properties.hectares;
+      const popupParts = [matricula];
+      if (desc) popupParts.push(desc);
+      if (ha != null && ha !== '') popupParts.push(String(ha) + ' ha');
+      layer.bindPopup(popupParts.join(' — '));
+      layer.bindTooltip(matricula, {
+        permanent: true,
+        direction: 'center',
+        className: 'area-matricula-label',
+        opacity: 1
+      });
+    }
+
+    function attachAreaToEditable(apiFeature, leafletLayer, borderColor) {
+      setFeatureOnLayerTree(leafletLayer, apiFeature);
+      bindMatriculaOnLayer(apiFeature, leafletLayer);
+      paintLabelsOnAreaLayer(leafletLayer, borderColor);
+      leafletLayer.on('contextmenu', function (e) {
+        if (activeEditRootLayer) return;
+        if (e.originalEvent) {
+          L.DomEvent.preventDefault(e.originalEvent);
+          L.DomEvent.stopPropagation(e.originalEvent);
+        }
+        showPolyContextMenu(e.originalEvent.clientX, e.originalEvent.clientY, leafletLayer);
+      });
+    }
+
+    function collectGeometryForApi(layer) {
+      const gj = layer.toGeoJSON();
+      if (gj.type === 'Feature') return gj.geometry;
+      if (gj.type === 'FeatureCollection' && gj.features && gj.features.length) {
+        const coords = [];
+        for (let i = 0; i < gj.features.length; i++) {
+          const g = gj.features[i].geometry;
+          if (!g) continue;
+          if (g.type === 'Polygon') coords.push(g.coordinates);
+          else if (g.type === 'MultiPolygon') {
+            for (let j = 0; j < g.coordinates.length; j++) coords.push(g.coordinates[j]);
+          }
+        }
+        if (coords.length === 0) return null;
+        if (coords.length === 1) return { type: 'Polygon', coordinates: coords[0] };
+        return { type: 'MultiPolygon', coordinates: coords };
+      }
+      return null;
+    }
+
+    function areaIdFromFeature(feature) {
+      return feature && (feature.id != null ? feature.id : (feature.properties && feature.properties.id));
+    }
+
+    function startGeometryEdit(rootLayer) {
+      activeEditPaths = [];
+      try {
+        if (rootLayer.pm && typeof rootLayer.pm.enable === 'function') {
+          rootLayer.pm.enable({
+            allowSelfIntersection: false,
+            snappable: true,
+            snapDistance: 15
+          });
+          activeEditPaths.push(rootLayer);
+          return true;
+        }
+      } catch (eRoot) { /* fallback abaixo */ }
+
+      function walk(l) {
+        if (l instanceof L.Polygon || l instanceof L.Polyline || l instanceof L.Rectangle) {
+          var enabled = false;
+          if (l.pm && typeof l.pm.enable === 'function') {
+            try {
+              l.pm.enable({
+                allowSelfIntersection: false,
+                snappable: true,
+                snapDistance: 15
+              });
+              enabled = true;
+            } catch (eGm) { /* ignore */ }
+          }
+          if (!enabled && l.editing && typeof l.editing.enable === 'function') {
+            try {
+              l.editing.enable();
+              enabled = true;
+            } catch (eLd) { /* ignore */ }
+          }
+          if (enabled) activeEditPaths.push(l);
+        } else if (l.eachLayer) {
+          l.eachLayer(walk);
+        }
+      }
+      walk(rootLayer);
+      return activeEditPaths.length > 0;
+    }
+
+    function stopGeometryEditPaths() {
+      activeEditPaths.forEach(function (p) {
+        try {
+          if (p.pm && typeof p.pm.disable === 'function') p.pm.disable();
+        } catch (e) { /* ignore */ }
+        try {
+          if (p.editing && typeof p.editing.disable === 'function') p.editing.disable();
+        } catch (e2) { /* ignore */ }
+      });
+      activeEditPaths = [];
+      try {
+        if (map.pm && typeof map.pm.disableGlobalEditMode === 'function') {
+          map.pm.disableGlobalEditMode();
+        }
+      } catch (e3) { /* ignore */ }
+    }
+
+    function normalizeHexColor(s) {
+      if (!s || typeof s !== 'string') return '#3388ff';
+      s = s.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
+      if (/^#[0-9a-fA-F]{3}$/.test(s)) {
+        return '#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+      }
+      return '#3388ff';
+    }
+
+    async function patchAreaLayerToServer(layer, overrides) {
+      overrides = overrides || {};
+      const feature = layer.feature;
+      const aid = areaIdFromFeature(feature);
+      if (aid == null) return false;
+      const geometry = collectGeometryForApi(layer);
+      if (!geometry) return false;
+      const prop = feature.properties || {};
+      const pidMain = parseInt(document.getElementById('propertyId').value, 10);
+      let pid =
+        overrides.property != null && overrides.property !== ''
+          ? parseInt(String(overrides.property), 10)
+          : (prop.property != null ? parseInt(String(prop.property), 10) : pidMain);
+      if (isNaN(pid)) pid = pidMain;
+      const pathColor =
+        overrides.color != null
+          ? overrides.color
+          : ((layer.options && layer.options.color) || prop.color || '#3388ff');
+      const matricula =
+        overrides.matricula != null
+          ? String(overrides.matricula).trim()
+          : prop.matricula;
+      const description =
+        overrides.description != null
+          ? String(overrides.description)
+          : (prop.description != null ? prop.description : '');
+      let hectaresOut = null;
+      if (overrides.hectares !== undefined) {
+        const raw = overrides.hectares;
+        if (raw === '' || raw === null) {
+          hectaresOut = null;
+        } else {
+          const n = parseFloat(String(raw), 10);
+          hectaresOut = isNaN(n) ? null : n;
+        }
+      } else if (prop.hectares != null && prop.hectares !== '') {
+        const n = parseFloat(String(prop.hectares), 10);
+        hectaresOut = isNaN(n) ? null : n;
+      }
+      const body = {
+        type: 'Feature',
+        geometry: geometry,
+        properties: {
+          property: pid,
+          matricula: matricula,
+          description: description,
+          color: pathColor,
+          hectares: hectaresOut
+        }
+      };
+      const res = await apiFetch(API + 'areas/' + aid + '/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      return res.ok;
+    }
+
+    document.getElementById('polyCtxEdit').onclick = function (ev) {
+      ev.stopPropagation();
+      const layer = contextMenuTargetLayer;
+      hidePolyContextMenu();
+      if (!layer) return;
+      if (!startGeometryEdit(layer)) {
+        showMsg('Não foi possível abrir o editor. Recarregue a página.', false);
+        return;
+      }
+      activeEditRootLayer = layer;
+      mapEditBanner.classList.add('is-visible');
+      showMsg('Arraste vértices ou o meio das arestas. Depois: Salvar no servidor ou Cancelar.', true);
+    };
+
+    document.getElementById('polyCtxEditData').onclick = function (ev) {
+      ev.stopPropagation();
+      const layer = contextMenuTargetLayer;
+      hidePolyContextMenu();
+      if (!layer) return;
+      openAreaDataModal(layer);
+    };
+
+    document.getElementById('areaDataModalBackdrop').onclick = function () {
+      closeAreaDataModal();
+    };
+
+    document.getElementById('modalAreaCancel').onclick = function () {
+      closeAreaDataModal();
+    };
+
+    document.getElementById('modalAreaSave').onclick = async function () {
+      if (!modalEditLayer) return;
+      const mat = document.getElementById('modalAreaMatricula').value.trim();
+      if (!mat) {
+        showMsg('Matrícula é obrigatória.', false);
+        return;
+      }
+      const modalHaRaw = document.getElementById('modalAreaHectares').value.trim().replace(/\s/g, '').replace(',', '.');
+      if (modalHaRaw === '') {
+        showMsg('Hectares é obrigatório.', false);
+        return;
+      }
+      const modalHn = parseFloat(modalHaRaw, 10);
+      if (isNaN(modalHn) || modalHn <= 0) {
+        showMsg('Informe uma área em hectares válida (maior que zero).', false);
+        return;
+      }
+      const overrides = {
+        property: document.getElementById('modalAreaProperty').value,
+        matricula: mat,
+        description: document.getElementById('modalAreaDesc').value.trim(),
+        color: document.getElementById('modalAreaColor').value,
+        hectares: document.getElementById('modalAreaHectares').value.trim()
+      };
+      const ok = await patchAreaLayerToServer(modalEditLayer, overrides);
+      closeAreaDataModal();
+      if (ok) {
+        showMsg('Dados atualizados.', true);
+        const newPid = parseInt(String(overrides.property), 10);
+        const curPid = parseInt(document.getElementById('propertyId').value, 10);
+        if (!isNaN(newPid) && newPid !== curPid) {
+          document.getElementById('propertyId').value = String(newPid);
+        }
+      } else {
+        showMsg('Não foi possível salvar os dados.', false);
+      }
+      await reloadAreas();
+    };
+
+    document.getElementById('polyCtxColor').onclick = function (ev) {
+      ev.stopPropagation();
+      if (!contextMenuLayer) return;
+      const props = (contextMenuLayer.feature && contextMenuLayer.feature.properties) || {};
+      const c =
+        (contextMenuLayer.options && contextMenuLayer.options.color) ||
+        props.color ||
+        '#3388ff';
+      document.getElementById('polyCtxColorInput').value = normalizeHexColor(c);
+      polyCtxMain.style.display = 'none';
+      polyCtxColorPanel.style.display = 'block';
+    };
+
+    document.getElementById('polyCtxColorBack').onclick = function (ev) {
+      ev.stopPropagation();
+      polyCtxColorPanel.style.display = 'none';
+      polyCtxMain.style.display = 'grid';
+    };
+
+    document.getElementById('polyCtxColorApply').onclick = async function (ev) {
+      ev.stopPropagation();
+      const layer = contextMenuLayer;
+      const hex = document.getElementById('polyCtxColorInput').value;
+      hidePolyContextMenu();
+      if (!layer) return;
+      const ok = await patchAreaLayerToServer(layer, { color: hex });
+      if (ok) showMsg('Cor atualizada.', true);
+      else showMsg('Não foi possível atualizar a cor.', false);
+      await reloadAreas();
+    };
+
+    document.getElementById('polyCtxDelete').onclick = async function (ev) {
+      ev.stopPropagation();
+      const layer = contextMenuLayer;
+      const props = (layer && layer.feature && layer.feature.properties) || {};
+      const n = Number(props.linked_guarantee_count) || 0;
+      hidePolyContextMenu();
+      if (!layer || n > 0) return;
+      const aid = areaIdFromFeature(layer.feature);
+      if (aid == null) return;
+      if (!window.confirm('Excluir esta área do mapa? Esta ação não pode ser desfeita.')) return;
+      const res = await apiFetch(API + 'areas/' + aid + '/', { method: 'DELETE' });
+      if (res.status === 409) {
+        const data = await res.json().catch(function () { return {}; });
+        showMsg(data.detail || 'Não é possível excluir: há garantia vinculada.', false);
+        await reloadAreas();
+        return;
+      }
+      if (!res.ok) {
+        showMsg('Erro ao excluir área.', false);
+        await reloadAreas();
+        return;
+      }
+      showMsg('Área excluída.', true);
+      await reloadAreas();
+    };
+
+    document.getElementById('btnEditSave').onclick = async function (ev) {
+      ev.stopPropagation();
+      if (!activeEditRootLayer) return;
+      const layer = activeEditRootLayer;
+      let ok = false;
+      try {
+        ok = await patchAreaLayerToServer(layer);
+      } catch (err) {
+        ok = false;
+      }
+      stopGeometryEditPaths();
+      activeEditRootLayer = null;
+      mapEditBanner.classList.remove('is-visible');
+      if (ok) showMsg('Geometria salva.', true);
+      else showMsg('Não foi possível salvar; recarregando do servidor.', false);
+      await reloadAreas();
+    };
+
+    document.getElementById('btnEditCancel').onclick = async function (ev) {
+      ev.stopPropagation();
+      stopGeometryEditPaths();
+      activeEditRootLayer = null;
+      mapEditBanner.classList.remove('is-visible');
+      showMsg('Edição cancelada.', true);
+      await reloadAreas();
+    };
+
+    function resetMapEditUi() {
+      hidePolyContextMenu();
+      stopGeometryEditPaths();
+      activeEditRootLayer = null;
+      mapEditBanner.classList.remove('is-visible');
+    }
+
+    function getAreaPrintSelectedIds() {
+      return Array.from(areaPrintSelectedIds).map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !isNaN(n); });
+    }
+
+    function updateAreaPrintTriggerLabel() {
+      const el = document.getElementById('areaPrintTriggerLabel');
+      if (!el) return;
+      const n = areaPrintSelectedIds.size;
+      if (n === 0) {
+        el.textContent = 'Todas as matrículas (mapa completo)';
+        return;
+      }
+      if (n === 1) {
+        const id = Array.from(areaPrintSelectedIds)[0];
+        el.textContent = areaPrintMatriculaById.get(String(id)) || ('#' + id);
+        return;
+      }
+      el.textContent = 'Vários selecionados (' + n + ')';
+    }
+
+    function applyMapMatriculaFilter() {
+      const showAll = areaPrintSelectedIds.size === 0;
+      areaLayersById.forEach(function (layer, id) {
+        const shouldShow = showAll || areaPrintSelectedIds.has(id);
+        if (shouldShow) {
+          if (!editableGroup.hasLayer(layer)) editableGroup.addLayer(layer);
+        } else {
+          if (editableGroup.hasLayer(layer)) editableGroup.removeLayer(layer);
+        }
+      });
+    }
+
+    function fitMapToVisibleAreas() {
+      try {
+        if (areaPrintSelectedIds.size === 0) {
+          if (!lastLoadedAreaFeatures.length) return;
+          const gj = { type: 'FeatureCollection', features: lastLoadedAreaFeatures };
+          const b = L.geoJSON(gj).getBounds();
+          if (b.isValid()) map.fitBounds(b, { padding: [24, 24] });
+          return;
+        }
+        const layers = [];
+        areaPrintSelectedIds.forEach(function (id) {
+          const layer = areaLayersById.get(String(id));
+          if (layer) layers.push(layer);
+        });
+        if (!layers.length) return;
+        const fg = L.featureGroup(layers);
+        const b = fg.getBounds();
+        if (b.isValid()) map.fitBounds(b, { padding: [24, 24] });
+      } catch (eF) { /* ignore */ }
+    }
+
+    function filterAreaPrintListBySearch() {
+      const inp = document.getElementById('areaPrintSearch');
+      const q = (inp && inp.value || '').trim().toLowerCase();
+      const lis = document.querySelectorAll('#areaPrintList li');
+      for (let i = 0; i < lis.length; i++) {
+        const li = lis[i];
+        const t = (li.dataset.matricula || '').toLowerCase();
+        li.hidden = !!(q && t.indexOf(q) === -1);
+      }
+    }
+
+    function onAreaPrintCheckboxChanged() {
+      areaPrintSelectedIds.clear();
+      const cbs = document.querySelectorAll('#areaPrintList input[type="checkbox"]:checked');
+      for (let i = 0; i < cbs.length; i++) {
+        const id = cbs[i].getAttribute('data-area-id');
+        if (id) areaPrintSelectedIds.add(id);
+      }
+      updateAreaPrintTriggerLabel();
+      applyMapMatriculaFilter();
+      fitMapToVisibleAreas();
+    }
+
+    function syncAreaPrintChecklist(features) {
+      const listEl = document.getElementById('areaPrintList');
+      if (!listEl) return;
+      areaPrintMatriculaById.clear();
+      listEl.innerHTML = '';
+      const list = (features || []).slice().sort(function (a, b) {
+        const ma = (a.properties && a.properties.matricula) || '';
+        const mb = (b.properties && b.properties.matricula) || '';
+        return ma.localeCompare(mb, 'pt-BR');
+      });
+      const validIds = new Set();
+      for (let i = 0; i < list.length; i++) {
+        const f = list[i];
+        const id = f.id != null ? f.id : (f.properties && f.properties.id);
+        if (id == null) continue;
+        const sid = String(id);
+        const mat = (f.properties && f.properties.matricula) || sid;
+        validIds.add(sid);
+        areaPrintMatriculaById.set(sid, mat);
+      }
+      const stale = Array.from(areaPrintSelectedIds).filter(function (id) { return !validIds.has(id); });
+      for (let j = 0; j < stale.length; j++) areaPrintSelectedIds.delete(stale[j]);
+      for (let k = 0; k < list.length; k++) {
+        const f = list[k];
+        const id = f.id != null ? f.id : (f.properties && f.properties.id);
+        if (id == null) continue;
+        const sid = String(id);
+        const mat = (f.properties && f.properties.matricula) || sid;
+        const li = document.createElement('li');
+        li.dataset.matricula = mat;
+        const lab = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.setAttribute('data-area-id', sid);
+        cb.checked = areaPrintSelectedIds.has(sid);
+        cb.addEventListener('change', onAreaPrintCheckboxChanged);
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(' ' + mat));
+        li.appendChild(lab);
+        listEl.appendChild(li);
+      }
+      updateAreaPrintTriggerLabel();
+      filterAreaPrintListBySearch();
+      applyMapMatriculaFilter();
+      fitMapToVisibleAreas();
+    }
+
+    function isAreaPrintDropdownOpen() {
+      const panel = document.getElementById('areaPrintPanel');
+      return panel && !panel.hidden;
+    }
+
+    function openAreaPrintDropdown() {
+      const dd = document.getElementById('areaPrintDropdown');
+      const panel = document.getElementById('areaPrintPanel');
+      const trig = document.getElementById('areaPrintTrigger');
+      if (!dd || !panel || !trig) return;
+      dd.classList.add('is-open');
+      panel.hidden = false;
+      trig.setAttribute('aria-expanded', 'true');
+      const s = document.getElementById('areaPrintSearch');
+      if (s) {
+        s.value = '';
+        filterAreaPrintListBySearch();
+        setTimeout(function () {
+          try { s.focus(); } catch (e0) { /* ignore */ }
+        }, 10);
+      }
+    }
+
+    function closeAreaPrintDropdown() {
+      const dd = document.getElementById('areaPrintDropdown');
+      const panel = document.getElementById('areaPrintPanel');
+      const trig = document.getElementById('areaPrintTrigger');
+      if (!dd || !panel || !trig) return;
+      dd.classList.remove('is-open');
+      panel.hidden = true;
+      trig.setAttribute('aria-expanded', 'false');
+    }
+
+    async function reloadAreas() {
+      const pid = document.getElementById('propertyId').value;
+      if (!pid) {
+        lastPropertyForPrintFilter = null;
+        areaLayersById.clear();
+        areaPrintSelectedIds.clear();
+        lastLoadedAreaFeatures = [];
+        syncAreaPrintChecklist([]);
+        setMapStatus(null);
+        return;
+      }
+      if (lastPropertyForPrintFilter !== null && String(lastPropertyForPrintFilter) !== String(pid)) {
+        areaPrintSelectedIds.clear();
+      }
+      lastPropertyForPrintFilter = pid;
+      resetMapEditUi();
+      editableGroup.clearLayers();
+      areaLayersById.clear();
+      const res = await apiFetch(API + 'areas/?property=' + encodeURIComponent(pid));
+      if (!res.ok) {
+        showMsg('Erro áreas (' + res.status + ')', false);
+        setMapStatus(null);
+        lastLoadedAreaFeatures = [];
+        syncAreaPrintChecklist([]);
+        return;
+      }
+      const coll = await res.json();
+      const features = coll.features !== undefined ? coll.features : (Array.isArray(coll) ? coll : []);
+      lastLoadedAreaFeatures = features;
+      for (let fi = 0; fi < features.length; fi++) {
+        const f = features[fi];
+        if (!f.geometry) continue;
+        const color = (f.properties && f.properties.color) || '#3388ff';
+        const gj = L.geoJSON(f, {
+          style: { color: color, weight: 2, fillOpacity: 0.25 }
+        });
+        gj.eachLayer(function (child) {
+          attachAreaToEditable(f, child, color);
+          editableGroup.addLayer(child);
+          const aid = f.id != null ? f.id : (f.properties && f.properties.id);
+          if (aid != null) areaLayersById.set(String(aid), child);
+        });
+      }
+      syncAreaPrintChecklist(features);
+      setMapStatus(features.length);
+    }
+
+    function ringFromCoordText(text) {
+      const coords = [];
+      String(text || '').trim().split(/[\s\n]+/).forEach(function (tok) {
+        if (!tok) return;
+        const p = tok.split(',');
+        const lon = parseFloat(p[0]);
+        const lat = parseFloat(p[1]);
+        if (!isNaN(lon) && !isNaN(lat)) coords.push([lon, lat]);
+      });
+      if (coords.length >= 2) {
+        const a = coords[0];
+        const b = coords[coords.length - 1];
+        if (a[0] !== b[0] || a[1] !== b[1]) coords.push([a[0], a[1]]);
+      }
+      return coords.length >= 4 ? coords : null;
+    }
+
+    function polygonFromKmlPolyEl(polyEl) {
+      const rings = [];
+      const outers = polyEl.getElementsByTagName('outerBoundaryIs');
+      for (let i = 0; i < outers.length; i++) {
+        const lr = outers[i].getElementsByTagName('LinearRing')[0];
+        const cEl = lr && lr.getElementsByTagName('coordinates')[0];
+        const ring = cEl && ringFromCoordText(cEl.textContent);
+        if (ring) rings.push(ring);
+      }
+      const inners = polyEl.getElementsByTagName('innerBoundaryIs');
+      for (let j = 0; j < inners.length; j++) {
+        const lr = inners[j].getElementsByTagName('LinearRing')[0];
+        const cEl = lr && lr.getElementsByTagName('coordinates')[0];
+        const ring = cEl && ringFromCoordText(cEl.textContent);
+        if (ring) rings.push(ring);
+      }
+      if (!rings.length) return null;
+      return { type: 'Polygon', coordinates: rings };
+    }
+
+    function parseKmlStringToPolygons(xmlString) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlString, 'application/xml');
+      if (doc.querySelector('parsererror')) {
+        throw new Error('XML/KML inválido.');
+      }
+      const out = [];
+      const placemarks = doc.getElementsByTagName('Placemark');
+      for (let i = 0; i < placemarks.length; i++) {
+        const pm = placemarks[i];
+        const multis = pm.getElementsByTagName('MultiGeometry');
+        if (multis.length) {
+          for (let m = 0; m < multis.length; m++) {
+            const polys = multis[m].getElementsByTagName('Polygon');
+            for (let p = 0; p < polys.length; p++) {
+              const g = polygonFromKmlPolyEl(polys[p]);
+              if (g) out.push(g);
+            }
+          }
+        } else {
+          const polys = pm.getElementsByTagName('Polygon');
+          for (let p = 0; p < polys.length; p++) {
+            const g = polygonFromKmlPolyEl(polys[p]);
+            if (g) out.push(g);
+          }
+        }
+      }
+      if (!out.length) {
+        const loose = doc.getElementsByTagName('Polygon');
+        for (let k = 0; k < loose.length; k++) {
+          const g = polygonFromKmlPolyEl(loose[k]);
+          if (g) out.push(g);
+        }
+      }
+      return out;
+    }
+
+    function extractPolygonGeometriesFromGeoJSON(gj) {
+      const geoms = [];
+      function addG(g) {
+        if (!g) return;
+        if (g.type === 'Polygon' || g.type === 'MultiPolygon') geoms.push(g);
+      }
+      if (!gj) return geoms;
+      if (gj.type === 'FeatureCollection' && gj.features) {
+        gj.features.forEach(function (f) { addG(f.geometry); });
+      } else if (gj.type === 'Feature') {
+        addG(gj.geometry);
+      } else {
+        addG(gj);
+      }
+      return geoms;
+    }
+
+    function normalizeShpParseResult(raw) {
+      if (Array.isArray(raw)) {
+        const feats = [];
+        for (let i = 0; i < raw.length; i++) {
+          const item = raw[i];
+          if (item && item.type === 'FeatureCollection' && item.features) {
+            for (let j = 0; j < item.features.length; j++) feats.push(item.features[j]);
+          } else if (item && item.type === 'Feature') {
+            feats.push(item);
+          } else if (item && item.geometry) {
+            feats.push(item);
+          }
+        }
+        return { type: 'FeatureCollection', features: feats };
+      }
+      return raw;
+    }
+
+    function combinePolygonGeometries(geoms) {
+      const polys = [];
+      geoms.forEach(function (g) {
+        if (g.type === 'Polygon') polys.push(g.coordinates);
+        else if (g.type === 'MultiPolygon') {
+          for (let i = 0; i < g.coordinates.length; i++) polys.push(g.coordinates[i]);
+        }
+      });
+      if (!polys.length) return null;
+      if (polys.length === 1) return { type: 'Polygon', coordinates: polys[0] };
+      return { type: 'MultiPolygon', coordinates: polys };
+    }
+
+    async function fileToPolygonGeometry(file) {
+      const name = (file.name || '').toLowerCase();
+      const buf = await file.arrayBuffer();
+      if (name.endsWith('.kml')) {
+        const text = new TextDecoder('utf-8').decode(buf);
+        const polys = parseKmlStringToPolygons(text);
+        if (!polys.length) throw new Error('Nenhum polígono encontrado no KML.');
+        return combinePolygonGeometries(polys);
+      }
+      if (name.endsWith('.kmz')) {
+        if (typeof JSZip === 'undefined') throw new Error('JSZip não carregado.');
+        const z = await JSZip.loadAsync(buf);
+        const entries = Object.keys(z.files).filter(function (k) {
+          return /\.kml$/i.test(k) && !z.files[k].dir;
+        });
+        if (!entries.length) throw new Error('KMZ sem arquivo .kml.');
+        entries.sort();
+        let chosen = entries.find(function (k) { return /(^|\/)doc\.kml$/i.test(k); });
+        if (!chosen) chosen = entries[0];
+        const text = await z.file(chosen).async('string');
+        const polys = parseKmlStringToPolygons(text);
+        if (!polys.length) throw new Error('Nenhum polígono encontrado no KMZ.');
+        return combinePolygonGeometries(polys);
+      }
+      if (name.endsWith('.zip')) {
+        if (typeof shp === 'undefined') throw new Error('Biblioteca de shapefile não carregada.');
+        const gj = normalizeShpParseResult(await shp(buf));
+        const geoms = extractPolygonGeometriesFromGeoJSON(gj);
+        if (!geoms.length) {
+          throw new Error('Nenhum polígono no shapefile. Use um .zip com .shp/.dbf/.shx (polígonos).');
+        }
+        return combinePolygonGeometries(geoms);
+      }
+      throw new Error('Formato não suportado. Use .kml, .kmz ou .zip (shapefile completo).');
+    }
+
+    document.getElementById('mapInsertDetails').addEventListener('toggle', function () {
+      setTimeout(function () {
+        try { map.invalidateSize(); } catch (e1) { /* ignore */ }
+      }, 200);
+    });
+
+    document.getElementById('btnImportGeo').onclick = function () {
+      document.getElementById('importGeoFile').click();
+    };
+
+    document.getElementById('importGeoFile').addEventListener('change', async function (ev) {
+      const inp = ev.target;
+      const file = inp.files && inp.files[0];
+      inp.value = '';
+      if (!file) return;
+      if (!areaMatriculaInput.value.trim()) {
+        showMsg('Informe a matrícula antes de importar.', false);
+        return;
+      }
+      const haImp = parseHectaresFormValue();
+      if (!haImp.ok) {
+        showMsg('Informe os hectares (obrigatório, maior que zero) antes de importar.', false);
+        return;
+      }
+      const pid = document.getElementById('propertyId').value;
+      if (!pid) {
+        showMsg('Selecione uma fazenda.', false);
+        return;
+      }
+      try {
+        const geometry = await fileToPolygonGeometry(file);
+        if (!geometry) throw new Error('Não foi possível obter polígono do arquivo.');
+        const matricula = document.getElementById('areaMatricula').value.trim();
+        const desc = document.getElementById('areaDesc').value.trim();
+        const color = document.getElementById('areaColor').value;
+        const hectares = haImp.value;
+        const body = {
+          type: 'Feature',
+          geometry: geometry,
+          properties: {
+            property: parseInt(pid, 10),
+            matricula: matricula,
+            description: desc,
+            color: color,
+            hectares: hectares
+          }
+        };
+        const res = await apiFetch(API + 'areas/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(function () { return {}; });
+          showMsg('Erro ao salvar: ' + (JSON.stringify(err).slice(0, 200)), false);
+          return;
+        }
+        showMsg('Geometria importada e área salva.', true);
+        areaPrintSelectedIds.clear();
+        await reloadAreas();
+      } catch (err) {
+        showMsg((err && err.message) ? err.message : 'Falha ao importar arquivo.', false);
+      }
+    });
+
+    document.getElementById('propertyId').onchange = reloadAreas;
+    document.getElementById('btnReload').onclick = reloadAreas;
+
+    function closeMapPrintModal() {
+      const m = document.getElementById('mapPrintModal');
+      m.classList.remove('is-open');
+      m.setAttribute('aria-hidden', 'true');
+    }
+
+    async function loadPrintModalCropSeasons() {
+      const sel = document.getElementById('printModalCropSeason');
+      sel.innerHTML = '<option value="">Carregando…</option>';
+      const res = await apiFetch(API + 'crop-seasons/');
+      sel.innerHTML = '<option value="">Selecione a safra</option>';
+      if (!res.ok) {
+        showMsg('Erro ao carregar safras.', false);
+        return;
+      }
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : (data.results || []);
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const o = document.createElement('option');
+        o.value = String(r.id);
+        o.textContent = (r.name || ('#' + r.id)) + ' (' + (r.start_date || '') + ' — ' + (r.end_date || '') + ')';
+        sel.appendChild(o);
+      }
+    }
+
+    async function loadPrintModalGuarantees() {
+      const pid = document.getElementById('propertyId').value;
+      const cs = document.getElementById('printModalCropSeason').value;
+      const gsel = document.getElementById('printModalGuarantee');
+      gsel.innerHTML = '<option value="">Selecione a garantia</option>';
+      if (!pid || !cs) {
+        gsel.innerHTML = '<option value="">Primeiro selecione a safra</option>';
+        return;
+      }
+      const res = await apiFetch(API + 'guarantees/?property=' + encodeURIComponent(pid) + '&crop_season=' + encodeURIComponent(cs));
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : (data.results || []);
+      if (!rows.length) {
+        const o = document.createElement('option');
+        o.value = '';
+        o.textContent = 'Nenhuma garantia nesta safra/fazenda';
+        gsel.innerHTML = '';
+        gsel.appendChild(o);
+        return;
+      }
+      for (let j = 0; j < rows.length; j++) {
+        const g = rows[j];
+        const o = document.createElement('option');
+        o.value = String(g.id);
+        const t = (g.type != null ? String(g.type) : 'Garantia') + ' #' + g.id + ' — ' + (g.status || '');
+        o.textContent = t;
+        gsel.appendChild(o);
+      }
+    }
+
+    async function openMapPrintModal() {
+      const selected = getAreaPrintSelectedIds();
+      if (!selected.length) {
+        showMsg('Selecione ao menos uma matrícula para imprimir.', false);
+        return;
+      }
+      if (!document.getElementById('propertyId').value) {
+        showMsg('Selecione uma fazenda.', false);
+        return;
+      }
+      const m = document.getElementById('mapPrintModal');
+      m.classList.add('is-open');
+      m.setAttribute('aria-hidden', 'false');
+      document.querySelector('input[name="mapPrintBase"][value="satellite"]').checked = true;
+      await loadPrintModalCropSeasons();
+      await loadPrintModalGuarantees();
+    }
+
+    document.getElementById('mapPrintModalBackdrop').onclick = closeMapPrintModal;
+    document.getElementById('mapPrintModalCancel').onclick = closeMapPrintModal;
+    document.getElementById('printModalCropSeason').addEventListener('change', function () {
+      loadPrintModalGuarantees();
+    });
+
+    document.getElementById('btnPrintMap').onclick = function () {
+      openMapPrintModal();
+    };
+
+    document.getElementById('mapPrintModalConfirm').onclick = async function () {
+      const selected = getAreaPrintSelectedIds();
+      if (!selected.length) {
+        showMsg('Selecione matrículas para imprimir.', false);
+        return;
+      }
+      const cs = document.getElementById('printModalCropSeason').value;
+      const gid = document.getElementById('printModalGuarantee').value;
+      if (!cs) {
+        showMsg('Selecione a safra.', false);
+        return;
+      }
+      if (!gid) {
+        showMsg('Selecione a garantia.', false);
+        return;
+      }
+      const modeRadio = document.querySelector('input[name="mapPrintBase"]:checked');
+      const mode = modeRadio ? modeRadio.value : 'satellite';
+      const styleBefore = currentMapBaseStyle;
+      const btn = document.getElementById('mapPrintModalConfirm');
+      btn.disabled = true;
+      closeMapPrintModal();
+      try {
+        setMapBaseStyle(mode);
+        map.invalidateSize(false);
+        await sleepMs(850);
+        let snapPayload = null;
+        let captureFailed = false;
+        if (typeof html2canvas === 'function') {
+          try {
+            const mapEl = document.getElementById('map');
+            const canvas = await html2canvas(mapEl, {
+              useCORS: true,
+              allowTaint: false,
+              logging: false,
+              scale: 1,
+              backgroundColor: '#87ceeb'
+            });
+            const dataUrl = canvas.toDataURL('image/png');
+            const parts = dataUrl.split(',');
+            snapPayload = parts.length > 1 ? parts[1] : dataUrl;
+          } catch (capErr) {
+            captureFailed = true;
+          }
+        }
+        setMapBaseStyle(styleBefore);
+        map.invalidateSize(false);
+        const res = await fetch(MAP_PRINT_PDF_URL, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF
+          },
+          body: JSON.stringify({
+            area_ids: selected,
+            crop_season_id: parseInt(cs, 10),
+            guarantee_id: parseInt(gid, 10),
+            map_snapshot_base64: snapPayload
+          })
+        });
+        if (res.status === 400 || res.status === 403) {
+          const t = await res.text();
+          showMsg((t && t.trim()) ? t.trim().slice(0, 280) : 'Não foi possível gerar o PDF.', false);
+          return;
+        }
+        if (!res.ok) {
+          showMsg('Erro ao gerar PDF (' + res.status + ').', false);
+          return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'mapa-matriculas.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showMsg(
+          captureFailed
+            ? 'PDF gerado (sem imagem de fundo — falha na captura dos tiles).'
+            : 'PDF gerado.',
+          true
+        );
+      } catch (e2) {
+        setMapBaseStyle(styleBefore);
+        map.invalidateSize(false);
+        showMsg('Falha ao gerar o PDF. Tente novamente.', false);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    map.on(L.Draw.Event.CREATED, async function (e) {
+      const layer = e.layer;
+      const geojson = layer.toGeoJSON();
+      const pid = document.getElementById('propertyId').value;
+      const matricula = document.getElementById('areaMatricula').value.trim();
+      if (!matricula) {
+        showMsg('Informe a matrícula da área.', false);
+        map.removeLayer(layer);
+        return;
+      }
+      const haDraw = parseHectaresFormValue();
+      if (!haDraw.ok) {
+        showMsg('Informe os hectares (obrigatório, maior que zero).', false);
+        map.removeLayer(layer);
+        return;
+      }
+      const desc = document.getElementById('areaDesc').value.trim();
+      const color = document.getElementById('areaColor').value;
+      const hectares = haDraw.value;
+      const body = {
+        type: 'Feature',
+        geometry: geojson.geometry,
+        properties: {
+          property: parseInt(pid, 10),
+          matricula: matricula,
+          description: desc,
+          color: color,
+          hectares: hectares
+        }
+      };
+      const res = await apiFetch(API + 'areas/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showMsg('Erro ao salvar: ' + (JSON.stringify(err).slice(0, 200)), false);
+        map.removeLayer(layer);
+        return;
+      }
+      showMsg('Área salva.', true);
+      map.removeLayer(layer);
+      areaPrintSelectedIds.clear();
+      await reloadAreas();
+    });
+
+    map.on(L.Draw.Event.EDITED, async function (e) {
+      const jobs = [];
+      let anyErr = false;
+      e.layers.eachLayer(function (layer) {
+        jobs.push(
+          patchAreaLayerToServer(layer).then(function (ok) {
+            if (!ok) anyErr = true;
+          })
+        );
+      });
+      if (!jobs.length) return;
+      await Promise.all(jobs);
+      if (anyErr) {
+        showMsg('Alguma área não pôde ser salva; mapa recarregado do servidor.', false);
+      } else {
+        showMsg('Polígonos atualizados.', true);
+      }
+      await reloadAreas();
+    });
+
+    loadProperties().catch(function() { showMsg('Falha ao iniciar', false); });
+  })();
+  </script>
+{% endblock %}

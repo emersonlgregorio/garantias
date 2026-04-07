@@ -1,0 +1,40 @@
+{% extends "app/base.html" %}
+{% block page_title %}{% if mode == 'edit' %}Editar fazenda{% else %}Nova fazenda{% endif %}{% endblock %}
+{% block content %}
+  <section class="card card-pad" style="max-width:720px">
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:grid;gap:1rem">
+        <div style="display:grid;gap:0.35rem">
+          <label>Descrição</label>
+          {{ form.description }}
+          {{ form.description.errors }}
+        </div>
+        <div style="display:grid;gap:0.35rem">
+          <label>Cidade</label>
+          {{ form.city }}
+          {{ form.city.errors }}
+        </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem">
+          <button class="btn btn-primary" type="submit">Salvar</button>
+          <a class="btn btn-ghost" href="{% url 'app_properties_list' %}">Voltar</a>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <style>
+    input, select, textarea {
+      padding: 0.65rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fafcfb;
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: #fff; }
+    label { font-weight: 600; font-size: 0.9rem; }
+    .errorlist { margin: 0.35rem 0 0; padding-left: 1.1rem; color: #b42318; font-size: 0.85rem; }
+  </style>
+{% endblock %}

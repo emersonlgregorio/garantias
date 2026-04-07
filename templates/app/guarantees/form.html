@@ -1,0 +1,106 @@
+{% extends "app/base.html" %}
+{% block page_title %}{% if mode == 'edit' %}Editar garantia{% else %}Nova garantia{% endif %}{% endblock %}
+{% block content %}
+  <section class="card card-pad" style="max-width:920px">
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:grid;gap:1rem">
+        <div style="display:grid;gap:0.35rem">
+          <label>Fazenda</label>
+          <input id="propertySearch" type="text" placeholder="Pesquisar descrição ou cidade..." style="padding:0.65rem 0.75rem;border-radius:10px;border:1px solid var(--border);background:#fafcfb">
+          {{ form.property }}
+          {{ form.property.errors }}
+          <div style="font-size:0.85rem;color:var(--text-muted)">Dica: use a busca para filtrar a lista.</div>
+        </div>
+
+        <div style="display:grid;gap:0.35rem">
+          <label>Safra</label>
+          {{ form.crop_season }}
+          {{ form.crop_season.errors }}
+          <div style="font-size:0.85rem;color:var(--text-muted)">A garantia fica vinculada a uma safra (obrigatório para relatórios e impressão do mapa).</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="display:grid;gap:0.35rem">
+            <label>Tipo</label>
+            {{ form.type }}
+            {{ form.type.errors }}
+          </div>
+          <div style="display:grid;gap:0.35rem">
+            <label>Status</label>
+            {{ form.status }}
+            {{ form.status.errors }}
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="display:grid;gap:0.35rem">
+            <label>Valor</label>
+            {{ form.value }}
+            {{ form.value.errors }}
+          </div>
+          <div style="display:grid;gap:0.35rem">
+            <label>Data de emissão</label>
+            {{ form.issue_date }}
+            {{ form.issue_date.errors }}
+          </div>
+        </div>
+
+        <div style="display:grid;gap:0.35rem">
+          <label>Áreas (talhões)</label>
+          {{ form.areas }}
+          {{ form.areas.errors }}
+          <div style="font-size:0.85rem;color:var(--text-muted)">Segure Ctrl/Command para selecionar mais de uma.</div>
+        </div>
+
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem">
+          <button class="btn btn-primary" type="submit">Salvar</button>
+          <a class="btn btn-ghost" href="{% url 'app_guarantees_list' %}">Voltar</a>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <style>
+    input, select {
+      padding: 0.65rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fafcfb;
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    select[multiple] { min-height: 160px; }
+    input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: #fff; }
+    label { font-weight: 600; font-size: 0.9rem; }
+    .errorlist { margin: 0.35rem 0 0; padding-left: 1.1rem; color: #b42318; font-size: 0.85rem; }
+    select { width: 100%; }
+  </style>
+
+  <script>
+    (function() {
+      const q = document.getElementById('propertySearch');
+      const sel = document.getElementById('id_property');
+      if (!q || !sel) return;
+      const all = Array.from(sel.options).map(o => ({ value: o.value, text: o.text }));
+      function apply() {
+        const term = (q.value || '').toLowerCase().trim();
+        const keep = term ? all.filter(o => o.text.toLowerCase().includes(term)) : all;
+        const current = sel.value;
+        sel.innerHTML = '';
+        for (const o of keep) {
+          const opt = document.createElement('option');
+          opt.value = o.value;
+          opt.textContent = o.text;
+          if (o.value === current) opt.selected = true;
+          sel.appendChild(opt);
+        }
+      }
+      q.addEventListener('input', apply);
+      // Deixa o select com texto mais útil
+      for (const o of sel.options) {
+        // sem alteração aqui; queryset já vem com __str__ do Property
+      }
+    })();
+  </script>
+{% endblock %}
