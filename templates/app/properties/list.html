@@ -1,7 +1,7 @@
 {% extends "app/base.html" %}
 {% block page_title %}Fazendas{% endblock %}
 {% block top_actions %}
-  <a class="btn btn-primary" href="{% url 'app_properties_new' %}">Nova fazenda</a>
+  <a class="btn btn-primary" href="{% url 'app_properties_new' %}" {% if not can_create %}aria-disabled="true" style="pointer-events:none;opacity:0.55"{% endif %}>Nova fazenda</a>
 {% endblock %}
 {% block content %}
   <section class="card card-pad">

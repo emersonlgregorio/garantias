@@ -1,0 +1,115 @@
+{% extends "app/base.html" %}
+{% block page_title %}Faturas{% endblock %}
+{% block content %}
+  <section class="card card-pad">
+    <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <p style="margin:0;color:var(--text-muted)">Faturas internas (MVP, sem gateway).</p>
+        <p style="margin:0.35rem 0 0;color:var(--text-muted);font-size:0.92rem">
+          <strong>Plano atual (Garantias):</strong>
+          {% if current_subscription %}
+            {{ current_subscription.plan.name }}
+            {% if current_subscription.plan.billing_type == "YEARLY" and current_subscription.end_date %}
+              · vence em {{ current_subscription.end_date }}
+            {% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </p>
+      </div>
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+        <button class="btn btn-ghost" type="button" id="btnPlans">Planos</button>
+        <a class="btn btn-ghost" href="{% url 'admin_area' %}">Voltar</a>
+      </div>
+    </div>
+    <div style="overflow:auto;margin-top:0.75rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">Plano</th>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">Módulo</th>
+            <th style="text-align:right;padding:0.5rem;border-bottom:1px solid var(--border)">Valor</th>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">Status</th>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">Vencimento</th>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">Criada em</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in invoices %}
+            <tr>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ inv.subscription.plan.name }}</td>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ inv.subscription.module.name }}</td>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border);text-align:right">R$ {{ inv.amount }}</td>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ inv.get_status_display }}</td>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ inv.due_date }}</td>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ inv.created_at }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" style="padding:0.75rem;color:var(--text-muted)">Nenhuma fatura encontrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div id="plansModal" class="area-data-modal" aria-hidden="true">
+    <div class="area-data-modal__backdrop" id="plansModalBackdrop" role="presentation"></div>
+    <div class="area-data-modal__panel" role="dialog" aria-labelledby="plansModalTitle" aria-modal="true" style="width:min(720px,100%)">
+      <h2 id="plansModalTitle" style="margin:0 0 0.85rem;font-size:1.12rem;font-family:var(--font-display)">Planos por módulo</h2>
+      <p style="margin:0 0 1rem;color:var(--text-muted)">Assinaturas atuais da sua empresa.</p>
+      <div style="overflow:auto;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,0.6)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:0.6rem;border-bottom:1px solid var(--border)">Módulo</th>
+              <th style="text-align:left;padding:0.6rem;border-bottom:1px solid var(--border)">Plano</th>
+              <th style="text-align:left;padding:0.6rem;border-bottom:1px solid var(--border)">Status</th>
+              <th style="text-align:left;padding:0.6rem;border-bottom:1px solid var(--border)">Vencimento</th>
+              <th style="text-align:right;padding:0.6rem;border-bottom:1px solid var(--border)">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in subscriptions %}
+              <tr>
+                <td style="padding:0.6rem;border-bottom:1px solid var(--border)">{{ s.module.name }}</td>
+                <td style="padding:0.6rem;border-bottom:1px solid var(--border)">{{ s.plan.name }}</td>
+                <td style="padding:0.6rem;border-bottom:1px solid var(--border)">{{ s.get_status_display }}</td>
+                <td style="padding:0.6rem;border-bottom:1px solid var(--border)">{% if s.end_date %}{{ s.end_date }}{% else %}—{% endif %}</td>
+                <td style="padding:0.6rem;border-bottom:1px solid var(--border);text-align:right">
+                  {% if s.module.key == "guarantees" %}
+                    <a class="btn btn-ghost" href="{% url 'admin_area_change_plan' %}" style="padding:0.45rem 0.7rem">Migrar plano</a>
+                  {% else %}
+                    <span style="color:var(--text-muted);font-size:0.9rem">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" style="padding:0.75rem;color:var(--text-muted)">Nenhuma assinatura encontrada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:0.6rem;flex-wrap:wrap;margin-top:1rem">
+        <button type="button" id="plansModalClose" class="btn btn-primary">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const m = document.getElementById('plansModal');
+      const openBtn = document.getElementById('btnPlans');
+      const closeBtn = document.getElementById('plansModalClose');
+      const bd = document.getElementById('plansModalBackdrop');
+      function open() { m.classList.add('is-open'); m.setAttribute('aria-hidden', 'false'); }
+      function close() { m.classList.remove('is-open'); m.setAttribute('aria-hidden', 'true'); }
+      if (openBtn) openBtn.addEventListener('click', open);
+      if (closeBtn) closeBtn.addEventListener('click', close);
+      if (bd) bd.addEventListener('click', close);
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape' && m.classList.contains('is-open')) close();
+      });
+    })();
+  </script>
+{% endblock %}
+

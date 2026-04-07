@@ -1,4 +1,5 @@
 {% extends "marketing/base.html" %}
+{% load form_extras %}
 {% block title %}Criar conta — Garantias Rurais{% endblock %}
 {% block extra_styles %}
     .auth-wrap { min-height: 100vh; display: flex; flex-direction: column; }
@@ -16,9 +17,33 @@
     .auth-card .sub { color: var(--text-muted); font-size: 0.95rem; margin: 0 0 1.5rem; }
     .form-row { margin-bottom: 1rem; }
     .form-row label { display: block; font-weight: 500; font-size: 0.88rem; margin-bottom: 0.35rem; color: var(--text); }
-    .form-row input {
+    .form-row input:not([type="checkbox"]):not([type="radio"]) {
       width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border); border-radius: 10px;
       font-family: inherit; font-size: 1rem; background: #fafcfb;
+    }
+    .form-row input[type="checkbox"], .form-row input[type="radio"] {
+      width: auto;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+    }
+    .form-row select {
+      width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border); border-radius: 10px;
+      font-family: inherit; font-size: 1rem; background: #fafcfb;
+    }
+    .choice-list { display: grid; gap: 0.45rem; margin-top: 0.25rem; }
+    .choice-list ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.45rem; }
+    .choice-list li { margin: 0; padding: 0; }
+    .choice-list label {
+      display: flex;
+      gap: 0.55rem;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: left;
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: var(--text);
     }
     .form-row input:focus {
       outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
@@ -31,6 +56,20 @@
     .submit-row { margin-top: 1.5rem; }
     .submit-row .btn-primary { width: 100%; padding: 0.85rem; font-size: 1rem; }
     .footer-note { text-align: center; margin-top: 1.25rem; font-size: 0.9rem; color: var(--text-muted); }
+    .stepper { display:flex; gap:0.4rem; margin: 0 0 1rem; }
+    .step-dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(19,40,24,0.18); }
+    .step-dot.on { background: var(--accent); }
+    .nav-row { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top: 1.25rem; }
+    .nav-row .btn { flex: 1; }
+    .help { color: var(--text-muted); font-size: 0.9rem; margin: 0.25rem 0 0; }
+    .module-pick { display:grid; gap:0.75rem; }
+    .module-row { padding:0.75rem; border:1px solid var(--border); border-radius:12px; background: rgba(255,255,255,0.6); }
+    .module-head { display:flex; align-items:center; gap:0.6rem; }
+    .module-head strong { font-size:0.98rem; }
+    .module-plan { margin-top:0.6rem; display:none; }
+    .module-row.on .module-plan { display:block; }
+    .payment-extra { display:none; }
+    .payment-extra.on { display:block; }
 {% endblock %}
 {% block body %}
 <div class="auth-wrap">
@@ -44,51 +83,115 @@
     <div class="container">
       <div class="auth-card">
         <h1>Criar conta</h1>
-        <p class="sub">Cadastre sua empresa e o primeiro usuário administrador.</p>
+        <div class="stepper" aria-hidden="true">
+          <span class="step-dot {% if step >= 1 %}on{% endif %}"></span>
+          <span class="step-dot {% if step >= 2 %}on{% endif %}"></span>
+          <span class="step-dot {% if step >= 3 %}on{% endif %}"></span>
+          <span class="step-dot {% if step >= 4 %}on{% endif %}"></span>
+        </div>
+        <p class="sub">
+          {% if step == 1 %}Dados da empresa (NF-e){% endif %}
+          {% if step == 2 %}Seleção de planos{% endif %}
+          {% if step == 3 %}Senha do administrador{% endif %}
+          {% if step == 4 %}Forma de pagamento{% endif %}
+        </p>
         <form method="post" action="">
           {% csrf_token %}
+          <input type="hidden" name="step" value="{{ step }}">
           {% if form.non_field_errors %}
             <div class="nonfield">{{ form.non_field_errors }}</div>
           {% endif %}
-          <div class="form-row">
-            <label for="id_company_name">{{ form.company_name.label }}</label>
-            {{ form.company_name }}
-            {{ form.company_name.errors }}
-          </div>
-          <div class="form-row">
-            <label for="id_cnpj">{{ form.cnpj.label }}</label>
-            {{ form.cnpj }}
-            {{ form.cnpj.errors }}
-          </div>
-          <div class="form-row">
-            <label for="id_email">{{ form.email.label }}</label>
-            {{ form.email }}
-            {{ form.email.errors }}
-          </div>
-          <div class="form-row-grid two">
-            <div class="form-row">
-              <label for="id_first_name">{{ form.first_name.label }}</label>
-              {{ form.first_name }}
-              {{ form.first_name.errors }}
+          {% if step == 2 %}
+            <div class="module-pick">
+              {% for m in form.modules %}
+                <div class="module-row" data-module-id="{{ m.id }}">
+                  <div class="module-head">
+                    {% with mid=m.id|stringformat:"s" %}
+                      {% with fkey="module_"|add:mid %}
+                        {{ form|form_field:fkey }}
+                      {% endwith %}
+                    {% endwith %}
+                    <label for="id_module_{{ m.id }}"><strong>{{ m.name }}</strong></label>
+                  </div>
+                  <div class="module-plan">
+                    <div class="form-row" style="margin:0.65rem 0 0">
+                      <label for="id_plan_{{ m.id }}">Plano</label>
+                      {% with mid=m.id|stringformat:"s" %}
+                        {% with pkey="plan_"|add:mid %}
+                          {% with pf=form|form_field:pkey %}
+                            {{ pf }}
+                            {{ pf.errors }}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
             </div>
+            {{ form.non_field_errors }}
+          {% elif step == 4 %}
             <div class="form-row">
-              <label for="id_last_name">{{ form.last_name.label }}</label>
-              {{ form.last_name }}
-              {{ form.last_name.errors }}
+              <label for="{{ form.payment_method.id_for_label }}">{{ form.payment_method.label }}</label>
+              {{ form.payment_method }}
+              {{ form.payment_method.errors }}
             </div>
-          </div>
-          <div class="form-row">
-            <label for="id_password1">{{ form.password1.label }}</label>
-            {{ form.password1 }}
-            {{ form.password1.errors }}
-          </div>
-          <div class="form-row">
-            <label for="id_password2">{{ form.password2.label }}</label>
-            {{ form.password2 }}
-            {{ form.password2.errors }}
-          </div>
-          <div class="submit-row">
-            <button type="submit" class="btn btn-primary">Criar empresa e acessar</button>
+
+            <div class="payment-extra" id="payBoleto">
+              <div class="form-row">
+                <label for="{{ form.boleto_email.id_for_label }}">{{ form.boleto_email.label }}</label>
+                {{ form.boleto_email }}
+                {{ form.boleto_email.errors }}
+              </div>
+            </div>
+
+            <div class="payment-extra" id="payCard">
+              <div class="form-row">
+                <label for="{{ form.card_holder.id_for_label }}">{{ form.card_holder.label }}</label>
+                {{ form.card_holder }}
+                {{ form.card_holder.errors }}
+              </div>
+              <div class="form-row">
+                <label for="{{ form.card_number.id_for_label }}">{{ form.card_number.label }}</label>
+                {{ form.card_number }}
+                {{ form.card_number.errors }}
+              </div>
+              <div class="form-row-grid two">
+                <div class="form-row">
+                  <label for="{{ form.card_exp.id_for_label }}">{{ form.card_exp.label }}</label>
+                  {{ form.card_exp }}
+                  {{ form.card_exp.errors }}
+                </div>
+                <div class="form-row">
+                  <label for="{{ form.card_cvv.id_for_label }}">{{ form.card_cvv.label }}</label>
+                  {{ form.card_cvv }}
+                  {{ form.card_cvv.errors }}
+                </div>
+              </div>
+              <div class="form-row">
+                <label for="{{ form.card_confirmation_email.id_for_label }}">{{ form.card_confirmation_email.label }}</label>
+                {{ form.card_confirmation_email }}
+                {{ form.card_confirmation_email.errors }}
+              </div>
+            </div>
+          {% else %}
+            {% for field in form %}
+              <div class="form-row">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {{ field.errors }}
+                {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          <div class="nav-row">
+            {% if step > 1 %}
+              <a class="btn btn-ghost" href="{% url 'signup' %}?step={{ step|add:'-1' }}">Voltar</a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+              {% if step < 4 %}Avançar{% else %}Finalizar cadastro{% endif %}
+            </button>
           </div>
         </form>
         <p class="footer-note">Já possui conta? <a href="{% url 'login' %}">Entrar</a></p>
@@ -96,4 +199,41 @@
     </div>
   </main>
 </div>
+
+{% if step == 2 %}
+<script>
+  (function () {
+    function syncRow(row) {
+      const cb = row.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      if (cb.checked) row.classList.add('on');
+      else row.classList.remove('on');
+    }
+    const rows = document.querySelectorAll('.module-row');
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      syncRow(r);
+      const cb = r.querySelector('input[type="checkbox"]');
+      if (cb) cb.addEventListener('change', function () { syncRow(r); });
+    }
+  })();
+</script>
+{% endif %}
+
+{% if step == 4 %}
+<script>
+  (function () {
+    const sel = document.getElementById('id_payment_method');
+    const boleto = document.getElementById('payBoleto');
+    const card = document.getElementById('payCard');
+    function sync() {
+      const v = sel ? sel.value : '';
+      if (boleto) boleto.classList.toggle('on', v === 'BOLETO');
+      if (card) card.classList.toggle('on', v === 'CARD');
+    }
+    if (sel) sel.addEventListener('change', sync);
+    sync();
+  })();
+</script>
+{% endif %}
 {% endblock %}

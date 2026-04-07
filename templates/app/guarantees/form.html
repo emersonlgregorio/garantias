@@ -1,61 +1,123 @@
 {% extends "app/base.html" %}
 {% block page_title %}{% if mode == 'edit' %}Editar garantia{% else %}Nova garantia{% endif %}{% endblock %}
 {% block content %}
-  <section class="card card-pad" style="max-width:920px">
+  <section class="card card-pad" style="max-width:980px">
+    <div class="tabs">
+      <button type="button" class="tab-btn is-active" data-tab="dados">Dados</button>
+      <button type="button" class="tab-btn" data-tab="mov">Movimentações</button>
+    </div>
+
     <form method="post">
       {% csrf_token %}
-      <div style="display:grid;gap:1rem">
-        <div style="display:grid;gap:0.35rem">
-          <label>Fazenda</label>
-          <input id="propertySearch" type="text" placeholder="Pesquisar descrição ou cidade..." style="padding:0.65rem 0.75rem;border-radius:10px;border:1px solid var(--border);background:#fafcfb">
-          {{ form.property }}
-          {{ form.property.errors }}
-          <div style="font-size:0.85rem;color:var(--text-muted)">Dica: use a busca para filtrar a lista.</div>
-        </div>
 
-        <div style="display:grid;gap:0.35rem">
-          <label>Safra</label>
-          {{ form.crop_season }}
-          {{ form.crop_season.errors }}
-          <div style="font-size:0.85rem;color:var(--text-muted)">A garantia fica vinculada a uma safra (obrigatório para relatórios e impressão do mapa).</div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="tab-panel is-active" id="tab-dados">
+        <div style="display:grid;gap:1rem">
           <div style="display:grid;gap:0.35rem">
-            <label>Tipo</label>
-            {{ form.type }}
-            {{ form.type.errors }}
+            <label>Fazenda</label>
+            <input id="propertySearch" type="text" placeholder="Pesquisar descrição ou cidade..." style="padding:0.65rem 0.75rem;border-radius:10px;border:1px solid var(--border);background:#fafcfb">
+            {{ form.property }}
+            {{ form.property.errors }}
+            <div style="font-size:0.85rem;color:var(--text-muted)">Dica: use a busca para filtrar a lista.</div>
           </div>
-          <div style="display:grid;gap:0.35rem">
-            <label>Status</label>
-            {{ form.status }}
-            {{ form.status.errors }}
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div style="display:grid;gap:0.35rem">
+              <label>Proprietário</label>
+              <input id="ownerField" type="text" value="—" disabled>
+              <div style="font-size:0.85rem;color:var(--text-muted)">Este campo é informativo. Edite o proprietário na tela de Fazendas.</div>
+            </div>
+            <div style="display:grid;gap:0.35rem">
+              <label>Matrícula (principal)</label>
+              {{ form.principal_area }}
+              {{ form.principal_area.errors }}
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div style="display:grid;gap:0.35rem">
+              <label>Parceiro de Negócio</label>
+              {{ form.business_partner }}
+              {{ form.business_partner.errors }}
+            </div>
+            <div style="display:grid;gap:0.35rem">
+              <label>Moeda</label>
+              {{ form.currency }}
+              {{ form.currency.errors }}
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div style="display:grid;gap:0.35rem">
+              <label>Valor</label>
+              {{ form.value }}
+              {{ form.value.errors }}
+            </div>
+            <div style="display:grid;gap:0.35rem">
+              <label>Vencimento</label>
+              {{ form.due_date }}
+              {{ form.due_date.errors }}
+            </div>
+          </div>
+
+          <div style="display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap">
+            <label style="display:flex;gap:0.55rem;align-items:center;margin:0">
+              {{ form.cpr }} <span>CPR</span>
+            </label>
+            <label style="display:flex;gap:0.55rem;align-items:center;margin:0">
+              {{ form.pledge }} <span>Penhor</span>
+            </label>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div style="display:grid;gap:0.35rem">
+              <label>Grau do Penhor</label>
+              {{ form.pledge_grade }}
+              {{ form.pledge_grade.errors }}
+            </div>
+            <div style="display:grid;gap:0.35rem">
+              <label>Produto</label>
+              {{ form.product }}
+              {{ form.product.errors }}
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div style="display:grid;gap:0.35rem">
+              <label>Tipo</label>
+              {{ form.type }}
+              {{ form.type.errors }}
+            </div>
+            <div style="display:grid;gap:0.35rem">
+              <label>Safra</label>
+              {{ form.crop_season }}
+              {{ form.crop_season.errors }}
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div style="display:grid;gap:0.35rem">
+              <label>Data de emissão</label>
+              {{ form.issue_date }}
+              {{ form.issue_date.errors }}
+            </div>
+            <div style="display:grid;gap:0.35rem">
+              <label>Status</label>
+              {{ form.status }}
+              {{ form.status.errors }}
+            </div>
+          </div>
+
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem">
+            <button class="btn btn-primary" type="submit">Salvar</button>
+            <a class="btn btn-ghost" href="{% url 'app_guarantees_list' %}">Voltar</a>
           </div>
         </div>
+      </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-          <div style="display:grid;gap:0.35rem">
-            <label>Valor</label>
-            {{ form.value }}
-            {{ form.value.errors }}
-          </div>
-          <div style="display:grid;gap:0.35rem">
-            <label>Data de emissão</label>
-            {{ form.issue_date }}
-            {{ form.issue_date.errors }}
-          </div>
-        </div>
-
-        <div style="display:grid;gap:0.35rem">
-          <label>Áreas (talhões)</label>
-          {{ form.areas }}
-          {{ form.areas.errors }}
-          <div style="font-size:0.85rem;color:var(--text-muted)">Segure Ctrl/Command para selecionar mais de uma.</div>
-        </div>
-
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem">
-          <button class="btn btn-primary" type="submit">Salvar</button>
-          <a class="btn btn-ghost" href="{% url 'app_guarantees_list' %}">Voltar</a>
+      <div class="tab-panel" id="tab-mov">
+        <div style="padding:0.75rem;border:1px dashed var(--border);border-radius:12px;background:rgba(255,255,255,0.6)">
+          <strong>Movimentações</strong>
+          <p style="margin:0.35rem 0 0;color:var(--text-muted)">Em breve. Vamos implementar após a validação do fluxo de dados.</p>
         </div>
       </div>
     </form>
@@ -70,37 +132,95 @@
       font-family: inherit;
       font-size: 1rem;
     }
-    select[multiple] { min-height: 160px; }
+    select[multiple] { min-height: 140px; }
     input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: #fff; }
     label { font-weight: 600; font-size: 0.9rem; }
     .errorlist { margin: 0.35rem 0 0; padding-left: 1.1rem; color: #b42318; font-size: 0.85rem; }
     select { width: 100%; }
+    .tabs { display:flex; gap:0.5rem; margin-bottom: 1rem; }
+    .tab-btn { border:1px solid var(--border); background:rgba(255,255,255,0.6); padding:0.55rem 0.85rem; border-radius:999px; cursor:pointer; font-weight:700; }
+    .tab-btn.is-active { background: rgba(27, 107, 74, 0.14); color: var(--accent-hover); border-color: rgba(27, 107, 74, 0.10); }
+    .tab-panel { display:none; }
+    .tab-panel.is-active { display:block; }
   </style>
 
   <script>
     (function() {
+      const propertyOwner = {{ property_owner_json|default:"{}"|safe }};
+      const areasByProperty = {{ areas_by_property_json|default:"{}"|safe }};
+
+      const btns = document.querySelectorAll('.tab-btn');
+      const dados = document.getElementById('tab-dados');
+      const mov = document.getElementById('tab-mov');
+      function activate(key) {
+        for (const b of btns) b.classList.toggle('is-active', b.dataset.tab === key);
+        if (dados) dados.classList.toggle('is-active', key === 'dados');
+        if (mov) mov.classList.toggle('is-active', key === 'mov');
+      }
+      for (const b of btns) b.addEventListener('click', () => activate(b.dataset.tab));
+
       const q = document.getElementById('propertySearch');
       const sel = document.getElementById('id_property');
-      if (!q || !sel) return;
-      const all = Array.from(sel.options).map(o => ({ value: o.value, text: o.text }));
-      function apply() {
-        const term = (q.value || '').toLowerCase().trim();
-        const keep = term ? all.filter(o => o.text.toLowerCase().includes(term)) : all;
-        const current = sel.value;
-        sel.innerHTML = '';
-        for (const o of keep) {
+      const ownerField = document.getElementById('ownerField');
+      const areaSel = document.getElementById('id_principal_area');
+
+      function setOwner() {
+        if (!ownerField || !sel) return;
+        const v = sel.value || '';
+        ownerField.value = (propertyOwner && propertyOwner[v]) ? propertyOwner[v] : '—';
+      }
+
+      function setAreasForProperty() {
+        if (!areaSel || !sel) return;
+        const pid = sel.value || '';
+        const options = (areasByProperty && areasByProperty[pid]) ? areasByProperty[pid] : [];
+        const current = areaSel.value;
+        areaSel.innerHTML = '';
+
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = '---------';
+        areaSel.appendChild(empty);
+
+        for (const a of options) {
           const opt = document.createElement('option');
-          opt.value = o.value;
-          opt.textContent = o.text;
-          if (o.value === current) opt.selected = true;
-          sel.appendChild(opt);
+          opt.value = String(a.id);
+          opt.textContent = a.matricula;
+          if (String(a.id) === String(current)) opt.selected = true;
+          areaSel.appendChild(opt);
         }
       }
-      q.addEventListener('input', apply);
-      // Deixa o select com texto mais útil
-      for (const o of sel.options) {
-        // sem alteração aqui; queryset já vem com __str__ do Property
+
+      if (q && sel) {
+        const all = Array.from(sel.options).map(o => ({ value: o.value, text: o.text }));
+        function apply() {
+          const term = (q.value || '').toLowerCase().trim();
+          const keep = term ? all.filter(o => o.text.toLowerCase().includes(term)) : all;
+          const current = sel.value;
+          sel.innerHTML = '';
+          for (const o of keep) {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            opt.textContent = o.text;
+            if (o.value === current) opt.selected = true;
+            sel.appendChild(opt);
+          }
+          setOwner();
+          setAreasForProperty();
+        }
+        q.addEventListener('input', apply);
       }
+
+      if (sel) {
+        sel.addEventListener('change', function() {
+          setOwner();
+          setAreasForProperty();
+        });
+      }
+
+      // init
+      setOwner();
+      setAreasForProperty();
     })();
   </script>
 {% endblock %}

@@ -60,7 +60,7 @@
             <label for="password">Senha</label>
             <input type="password" name="password" id="password" required autocomplete="current-password">
           </div>
-          <input type="hidden" name="next" value="{{ next|default:'/map/' }}">
+          <input type="hidden" name="next" value="{{ next|default:'/dashboard/' }}">
           <button type="submit" class="btn btn-primary">Entrar</button>
         </form>
         <p class="footer-note">Novo por aqui? <a href="{% url 'signup' %}">Criar conta grátis</a></p>

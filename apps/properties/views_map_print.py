@@ -5,11 +5,18 @@ from __future__ import annotations
 import json
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.template.loader import render_to_string
 from django.views import View
+from django.utils import timezone
 from weasyprint import HTML
 
+from apps.billing.services.entitlements import (
+    can_print,
+    ensure_module_access,
+    should_lock_on_first_print,
+)
 from apps.guarantees.models import Guarantee
 from apps.properties.models import Area
 
@@ -93,7 +100,30 @@ class MapAreasPdfView(LoginRequiredMixin, View):
 
     http_method_names = ["post"]
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
+        # Billing gate (módulo Garantias)
+        if not request.user.is_superuser:
+            cid = getattr(request.user, "company_id", None)
+            if cid is None:
+                return HttpResponse(
+                    "Sem empresa vinculada.",
+                    status=403,
+                    content_type="text/plain; charset=utf-8",
+                )
+            try:
+                sub = ensure_module_access(company_id=cid, module_key="guarantees")
+            except PermissionError:
+                return HttpResponse(
+                    "Acesso bloqueado: trial expirado ou assinatura inativa.",
+                    status=403,
+                    content_type="text/plain; charset=utf-8",
+                )
+            if not can_print(sub):
+                return HttpResponseBadRequest(
+                    "Seu plano atual não permite impressão (PDF).",
+                    content_type="text/plain; charset=utf-8",
+                )
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
         except json.JSONDecodeError:
@@ -185,7 +215,7 @@ class MapAreasPdfView(LoginRequiredMixin, View):
         season = guarantee.crop_season
         crop_season_label = season.name if season else "—"
         guarantee_label = (
-            f"{guarantee.get_type_display()} — #{guarantee.pk} — {guarantee.status}"
+            f"{guarantee.get_type_display()} — #{guarantee.pk} — {guarantee.get_status_display()}"
         )
 
         map_image_data_uri = None
@@ -287,6 +317,24 @@ class MapAreasPdfView(LoginRequiredMixin, View):
         pdf_bytes = HTML(
             string=body, base_url=request.build_absolute_uri("/")
         ).write_pdf()
+
+        # Regra do plano por matrícula: travar após primeira impressão bem-sucedida.
+        if not request.user.is_superuser:
+            cid = getattr(request.user, "company_id", None)
+            if cid is not None:
+                from apps.billing.models import Subscription  # import tardio para evitar ciclos
+
+                sub = (
+                    Subscription.objects.select_for_update()
+                    .select_related("module", "plan")
+                    .filter(company_id=cid, module__key="guarantees")
+                    .first()
+                )
+                if sub and (not sub.is_locked) and should_lock_on_first_print(sub):
+                    sub.is_locked = True
+                    sub.lock_reason = "FIRST_PRINT"
+                    sub.locked_at = timezone.now()
+                    sub.save(update_fields=["is_locked", "lock_reason", "locked_at"])
         response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = 'attachment; filename="mapa-matriculas.pdf"'
         return response

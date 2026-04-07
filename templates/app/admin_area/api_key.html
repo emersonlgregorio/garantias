@@ -1,0 +1,26 @@
+{% extends "app/base.html" %}
+{% block page_title %}API Key{% endblock %}
+{% block content %}
+  <section class="card card-pad">
+    <p style="margin-top:0;color:var(--text-muted)">Use esta chave para integrar sua empresa via API.</p>
+
+    {% if api_key %}
+      <div class="card card-pad" style="background:rgba(255,255,255,0.7)">
+        <div style="font-weight:700;margin-bottom:0.35rem">Chave atual</div>
+        <code style="display:block;white-space:nowrap;overflow:auto;padding:0.65rem;border:1px solid var(--border);border-radius:10px;background:#fff">{{ api_key.key }}</code>
+        <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem">
+          Criada em {{ api_key.created_at }}{% if api_key.rotated_at %} · Rotacionada em {{ api_key.rotated_at }}{% endif %}
+        </div>
+      </div>
+    {% else %}
+      <p style="color:var(--text-muted)">Nenhuma API key gerada ainda.</p>
+    {% endif %}
+
+    <form method="post" style="margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">{% if api_key %}Rotacionar{% else %}Gerar{% endif %} API key</button>
+      <a class="btn btn-ghost" href="{% url 'admin_area' %}">Voltar</a>
+    </form>
+  </section>
+{% endblock %}
+

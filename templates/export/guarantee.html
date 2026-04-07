@@ -16,7 +16,7 @@
 <body>
   <h1>Resumo da garantia #{{ guarantee.id }}</h1>
   <p class="meta">
-    Tipo: {{ guarantee.get_type_display }} · Valor: {{ guarantee.value }} · Emissão: {{ guarantee.issue_date }} · Status: {{ guarantee.status }}<br>
+    Tipo: {{ guarantee.get_type_display }} · Valor: {{ guarantee.value }} · Emissão: {{ guarantee.issue_date }} · Status: {{ guarantee.get_status_display }}<br>
     Fazenda: {{ guarantee.property.description }} — {{ guarantee.property.city }}
   </p>
 

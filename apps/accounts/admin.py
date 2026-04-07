@@ -6,8 +6,25 @@ from .models import Company, User
 
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
-    list_display = ("name", "cnpj", "plan", "status", "created_at")
+    list_display = ("name", "cnpj", "saas_plans", "plan", "status", "created_at")
     search_fields = ("name", "cnpj")
+
+    def saas_plans(self, obj: Company) -> str:
+        # Import tardio para evitar acoplamento no admin.
+        from apps.billing.models import Subscription
+
+        subs = (
+            Subscription.objects.select_related("module", "plan")
+            .filter(company_id=obj.pk)
+            .order_by("module__name")
+        )
+        parts = []
+        for s in subs:
+            mod = s.module.name if s.module else "—"
+            parts.append(f"{mod}: {s.plan.name}")
+        return " | ".join(parts) if parts else "—"
+
+    saas_plans.short_description = "Planos (SaaS)"
 
 
 @admin.register(User)

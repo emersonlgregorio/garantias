@@ -66,6 +66,24 @@ class AreaSerializer(GeoFeatureModelSerializer):
             raise serializers.ValidationError(
                 {"hectares": "Informe os hectares."}
             )
+        prop = attrs.get("property")
+        mat = attrs.get("matricula")
+        if self.instance:
+            if prop is None:
+                prop = self.instance.property
+            if mat is None:
+                mat = self.instance.matricula
+        if prop is not None and mat is not None:
+            mat = (mat or "").strip()
+            qs = Area.objects.filter(property=prop, matricula=mat)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {
+                        "matricula": "Já existe uma matrícula com este número nesta fazenda."
+                    }
+                )
         return attrs
 
     def validate_matricula(self, value):

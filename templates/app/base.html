@@ -10,6 +10,8 @@
     background: rgba(255,255,255,0.72);
     backdrop-filter: blur(10px);
     border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
   }
   @media (max-width: 980px) {
     .sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
@@ -19,7 +21,7 @@
   .logo span { color: var(--accent); }
   .company { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
 
-  .nav { margin-top: 1.25rem; display: grid; gap: 0.35rem; }
+  .nav { margin-top: 1.25rem; display: grid; gap: 0.35rem; flex: 1; align-content: start; }
   .nav a {
     display: flex; align-items: center; gap: 0.6rem;
     padding: 0.6rem 0.75rem;
@@ -30,6 +32,35 @@
   .nav a:hover { background: var(--accent-soft); border-color: transparent; }
   .nav a.active { background: rgba(27, 107, 74, 0.14); border-color: rgba(27, 107, 74, 0.10); color: var(--accent-hover); }
   .nav .pill { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); }
+
+  /* Sidebar: details/summary + acordeão (script no final do body). */
+  .nav-section {
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .nav-section > summary.nav-section__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem 0 0.15rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    list-style: none;
+    font-family: inherit;
+  }
+  .nav-section > summary.nav-section__toggle::-webkit-details-marker { display: none; }
+  .nav-section > summary.nav-section__toggle:hover { background: rgba(27, 107, 74, 0.08); border-radius: 12px; }
+  .nav-section__chev { font-size: 0.95rem; opacity: 0.85; transition: transform 160ms ease; }
+  .nav-section:not([open]) .nav-section__chev { transform: rotate(-90deg); }
+  .nav-section[open] .nav-section__chev { transform: rotate(0deg); }
+  .nav-section__items { display: grid; gap: 0.35rem; padding-top: 0.15rem; }
 
   .main { padding: 1.6rem 0; }
   .topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
@@ -45,6 +76,25 @@
     box-shadow: var(--shadow);
   }
   .card-pad { padding: 1.25rem; }
+  .sidebar-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: 0.6rem;
+  }
+  .sidebar-user {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .sidebar-user small {
+    display: block;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
 {% endblock %}
 
 {% block body %}
@@ -55,16 +105,49 @@
         <a href="{% url 'dashboard' %}" class="logo">terra<span>gis</span> garantias</a>
         <div class="company">{% if request.user.company %}{{ request.user.company.name }}{% else %}Conta sem empresa{% endif %}</div>
       </div>
-      <a href="{% url 'logout' %}" class="btn btn-ghost" style="padding:0.45rem 0.7rem">Sair</a>
     </div>
 
     <nav class="nav">
-      <a href="{% url 'dashboard' %}" class="{% if active_nav == 'dashboard' %}active{% endif %}">Dashboard</a>
-      <a href="{% url 'map' %}" class="{% if active_nav == 'map' %}active{% endif %}">Matrículas</a>
-      <a href="{% url 'app_properties_list' %}" class="{% if active_nav == 'properties' %}active{% endif %}">Fazendas</a>
-      <a href="{% url 'app_guarantees_list' %}" class="{% if active_nav == 'guarantees' %}active{% endif %}">Garantias </a>
-      <a href="{% url 'app_crops_list' %}" class="{% if active_nav == 'crops' %}active{% endif %}">Safras </a>
+      <details class="nav-section" id="navMasterdata" data-nav-group="masterdata" {% if active_nav == 'properties' or active_nav == 'partners' or active_nav == 'crops' or active_nav == 'products' or active_nav == 'currencies' %}open{% endif %}>
+        <summary class="nav-section__toggle">
+          <span>Dados Mestres</span>
+          <span class="nav-section__chev" aria-hidden="true">▾</span>
+        </summary>
+        <div class="nav-section__items">
+          <a href="{% url 'app_properties_list' %}" class="{% if active_nav == 'properties' %}active{% endif %}">Fazendas</a>
+          <a href="{% url 'app_partners_list' %}" class="{% if active_nav == 'partners' %}active{% endif %}">Parceiros de Negócios</a>
+          <a href="{% url 'app_crops_list' %}" class="{% if active_nav == 'crops' %}active{% endif %}">Safras</a>
+          <a href="{% url 'app_products_list' %}" class="{% if active_nav == 'products' %}active{% endif %}">Produtos Produção</a>
+          <a href="{% url 'app_currencies_list' %}" class="{% if active_nav == 'currencies' %}active{% endif %}">Moeda</a>
+        </div>
+      </details>
+
+      <details class="nav-section" id="navGuarantees" data-nav-group="guarantees" {% if active_nav == 'dashboard' or active_nav == 'map' or active_nav == 'guarantees' %}open{% endif %}>
+        <summary class="nav-section__toggle">
+          <span>Garantias</span>
+          <span class="nav-section__chev" aria-hidden="true">▾</span>
+        </summary>
+        <div class="nav-section__items">
+          <a href="{% url 'dashboard' %}" class="{% if active_nav == 'dashboard' %}active{% endif %}">Dashboard</a>
+          <a href="{% url 'map' %}" class="{% if active_nav == 'map' %}active{% endif %}">Matrículas</a>
+          <a href="{% url 'app_guarantees_list' %}" class="{% if active_nav == 'guarantees' %}active{% endif %}">Garantias</a>
+        </div>
+      </details>
     </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        {{ request.user.get_full_name|default:request.user.email }}
+        <small>{{ request.user.email }}</small>
+      </div>
+      {% if request.user.is_superuser or request.user.role == 'admin' %}
+        <a href="{% url 'admin_area' %}" class="btn btn-ghost" style="justify-content:flex-start">Administração</a>
+      {% endif %}
+      <form method="post" action="{% url 'logout' %}" style="margin:0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-ghost" style="justify-content:flex-start;width:100%">Sair</button>
+      </form>
+    </div>
   </aside>
 
   <main class="main">
@@ -81,5 +164,19 @@
     </div>
   </main>
 </div>
+<script>
+  (function () {
+    var nav = document.querySelector('aside.sidebar nav.nav');
+    if (!nav) return;
+    var sections = nav.querySelectorAll('details.nav-section');
+    sections.forEach(function (el) {
+      el.addEventListener('toggle', function () {
+        if (!el.open) return;
+        sections.forEach(function (other) {
+          if (other !== el) other.removeAttribute('open');
+        });
+      });
+    });
+  })();
+</script>
 {% endblock %}
-

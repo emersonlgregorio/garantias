@@ -23,7 +23,7 @@ class CommitmentLimitTests(TestCase):
             type=Guarantee.Type.CEDULA_RURAL,
             value=Decimal("1000.00"),
             issue_date="2024-01-01",
-            status="ativo",
+            status=Guarantee.Status.ATIVO,
         )
         self.g2 = Guarantee.objects.create(
             company=self.company,
@@ -31,7 +31,7 @@ class CommitmentLimitTests(TestCase):
             type=Guarantee.Type.PENHOR,
             value=Decimal("2000.00"),
             issue_date="2024-01-02",
-            status="ativo",
+            status=Guarantee.Status.ATIVO,
         )
         self.g3 = Guarantee.objects.create(
             company=self.company,
@@ -39,7 +39,7 @@ class CommitmentLimitTests(TestCase):
             type=Guarantee.Type.BARTER,
             value=Decimal("3000.00"),
             issue_date="2024-01-03",
-            status="ativo",
+            status=Guarantee.Status.ATIVO,
         )
         self.g4 = Guarantee.objects.create(
             company=self.company,
@@ -47,7 +47,7 @@ class CommitmentLimitTests(TestCase):
             type=Guarantee.Type.OUTROS,
             value=Decimal("4000.00"),
             issue_date="2024-01-04",
-            status="ativo",
+            status=Guarantee.Status.ATIVO,
         )
         self.season = CropSeason.objects.create(
             company=self.company,

@@ -6,6 +6,8 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.views.generic import TemplateView
 
+from apps.billing.services.entitlements import can_print, get_company_subscription, get_limit
+
 
 def oauth_prepare_stub(_request):
     """Reserva rota para OAuth (Google / Microsoft Entra). Implementar fluxo real com credenciais."""
@@ -46,6 +48,23 @@ class MapPageView(LoginRequiredMixin, TemplateView):
         )
         ctx["active_nav"] = "map"
         ctx["map_print_pdf_url"] = reverse("map_areas_pdf")
+        can_print_map = False
+        can_create_area = True
+        if user.is_superuser:
+            can_print_map = True
+        elif user.company_id:
+            sub = get_company_subscription(company_id=user.company_id, module_key="guarantees")
+            if sub:
+                can_print_map = can_print(sub)
+                lim = get_limit(sub, "limits.max_areas")
+                if lim is not None:
+                    from apps.properties.models import Area as LandArea
+
+                    current = LandArea.objects.filter(property__company_id=user.company_id).count()
+                    if current >= lim:
+                        can_create_area = False
+        ctx["can_print_map"] = can_print_map
+        ctx["can_create_area"] = can_create_area
         return ctx
 
 

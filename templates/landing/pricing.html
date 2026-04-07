@@ -1,0 +1,119 @@
+{% extends "marketing/base.html" %}
+{% block title %}Preços — Planos por módulo{% endblock %}
+{% block extra_styles %}
+  .site-header {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(238, 243, 238, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .site-header .inner { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0; }
+  .logo { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; color: var(--text); letter-spacing: -0.02em; }
+  .logo span { color: var(--accent); }
+  .nav-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+
+  .page { padding: 2.75rem 0 4rem; }
+  h1 { margin: 0 0 0.75rem; font-family: var(--font-display); letter-spacing: -0.03em; }
+  .lead { margin: 0 0 1.75rem; color: var(--text-muted); max-width: 52rem; }
+  .module { margin-top: 2rem; }
+  .module h2 { margin: 0 0 0.75rem; font-family: var(--font-display); letter-spacing: -0.02em; font-size: 1.35rem; }
+  .grid { display: grid; gap: 1rem; }
+  @media (min-width: 900px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .plan {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.35rem;
+  }
+  .plan .name { font-weight: 700; font-size: 1.05rem; }
+  .plan .price { margin-top: 0.35rem; font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em; }
+  .plan .sub { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.15rem; }
+  .plan ul { margin: 0.95rem 0 0; padding-left: 1.1rem; color: var(--text-muted); font-size: 0.92rem; }
+  .plan .cta { margin-top: 1.15rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .pill { display:inline-flex; align-items:center; gap:0.4rem; font-size:0.78rem; padding:0.25rem 0.6rem; border-radius:999px; border:1px solid var(--border); color: var(--text-muted); }
+{% endblock %}
+
+{% block body %}
+<header class="site-header">
+  <div class="container inner">
+    <a href="{% url 'landing' %}" class="logo">terra<span>gis</span> garantias</a>
+    <nav class="nav-actions">
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'dashboard' %}" class="btn btn-ghost">Ir para o app</a>
+      {% else %}
+        <a href="{% url 'login' %}" class="btn btn-ghost">Entrar</a>
+        <a href="{% url 'signup' %}" class="btn btn-primary">Criar conta</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+  <div class="container">
+    <h1>Planos por módulo</h1>
+    <p class="lead">
+      Escolha um plano para o módulo que você quer usar. Durante o <strong>trial de 7 dias</strong>, você terá acesso total ao módulo escolhido.
+    </p>
+
+    {% for m in modules %}
+      <section class="module">
+        <div style="display:flex;gap:0.75rem;align-items:baseline;flex-wrap:wrap">
+          <h2>{{ m.name }}</h2>
+          {% if m.description %}<span class="pill">{{ m.description }}</span>{% endif %}
+        </div>
+        <div class="grid">
+          {% for p in m.active_plans %}
+            <article class="plan">
+              <div class="name">{{ p.name }}</div>
+              <div class="price">
+                {% if p.price|floatformat:2 == "0.00" %}R$ 0{% else %}R$ {{ p.price }}{% endif %}
+              </div>
+              <div class="sub">
+                {% if p.billing_type == "YEARLY" %}cobrança anual{% elif p.billing_type == "PER_UNIT" %}por matrícula{% else %}mensal{% endif %}
+              </div>
+              {% if p.description %}<div style="margin-top:0.6rem;color:var(--text-muted)">{{ p.description }}</div>{% endif %}
+              <ul>
+                {% for f in p.features.all %}
+                  {% if f.key == "limits.max_properties" %}
+                    <li><strong>Fazendas</strong>: até {{ f.value }}</li>
+                  {% elif f.key == "limits.max_areas" %}
+                    <li><strong>Matrículas</strong>: até {{ f.value }}</li>
+                  {% elif f.key == "limits.max_guarantees" %}
+                    <li><strong>Garantias</strong>: até {{ f.value }}</li>
+                  {% elif f.key == "capabilities.can_print" %}
+                    <li><strong>Impressão (PDF)</strong>: {% if f.value %}liberado{% else %}não disponível{% endif %}</li>
+                  {% elif f.key == "rules.one_guarantee_per_crop_season" %}
+                    <li><strong>Garantia por safra</strong>: 1 por safra</li>
+                  {% elif f.key == "rules.lock_on_first_print" %}
+                    <li><strong>Após imprimir</strong>: trava as alterações</li>
+                  {% elif f.key == "rules.immutable_after_lock" %}
+                    <li><strong>Imutabilidade</strong>: não permite alterações após travar</li>
+                  {% else %}
+                    <li>{{ f.key }}: {{ f.value }}</li>
+                  {% endif %}
+                {% empty %}
+                  <li>Sem limites configurados</li>
+                {% endfor %}
+              </ul>
+              <div class="cta">
+                {% if request.user.is_authenticated %}
+                  <form method="post" action="{% url 'subscribe_landing' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="module_id" value="{{ m.id }}">
+                    <input type="hidden" name="plan_id" value="{{ p.id }}">
+                    <button class="btn btn-primary" type="submit">Assinar (trial)</button>
+                  </form>
+                {% else %}
+                  <a class="btn btn-primary" href="{% url 'signup' %}?next={% url 'landing_pricing' %}">Assinar (trial)</a>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}
+

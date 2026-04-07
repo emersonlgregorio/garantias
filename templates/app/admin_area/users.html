@@ -1,0 +1,59 @@
+{% extends "app/base.html" %}
+{% block page_title %}Usuários{% endblock %}
+{% block content %}
+  <section class="card card-pad" style="margin-bottom:1rem">
+    <h2 style="margin:0 0 0.75rem;font-family:var(--font-display);font-size:1.1rem">Criar usuário analista</h2>
+    <form method="post" style="display:grid;gap:0.75rem;max-width:520px">
+      {% csrf_token %}
+      <label style="display:grid;gap:0.35rem;font-weight:600">
+        E-mail
+        <input class="input" type="email" name="email" required>
+      </label>
+      <div style="display:grid;gap:0.75rem;grid-template-columns:1fr 1fr">
+        <label style="display:grid;gap:0.35rem;font-weight:600">
+          Nome
+          <input class="input" type="text" name="first_name">
+        </label>
+        <label style="display:grid;gap:0.35rem;font-weight:600">
+          Sobrenome
+          <input class="input" type="text" name="last_name">
+        </label>
+      </div>
+      <label style="display:grid;gap:0.35rem;font-weight:600">
+        Senha
+        <input class="input" type="password" name="password" required>
+      </label>
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+        <button class="btn btn-primary" type="submit">Criar</button>
+        <a class="btn btn-ghost" href="{% url 'admin_area' %}">Voltar</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="card card-pad">
+    <h2 style="margin:0 0 0.75rem;font-family:var(--font-display);font-size:1.1rem">Usuários da empresa</h2>
+    <div style="overflow:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">E-mail</th>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">Nome</th>
+            <th style="text-align:left;padding:0.5rem;border-bottom:1px solid var(--border)">Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            <tr>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ u.email }}</td>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ u.first_name }} {{ u.last_name }}</td>
+              <td style="padding:0.5rem;border-bottom:1px solid var(--border)">{{ u.get_role_display }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" style="padding:0.5rem;color:var(--text-muted)">Nenhum usuário.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+

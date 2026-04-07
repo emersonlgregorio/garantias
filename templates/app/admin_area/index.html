@@ -1,0 +1,26 @@
+{% extends "app/base.html" %}
+{% block page_title %}Administração{% endblock %}
+{% block content %}
+  <section class="card card-pad">
+    <p style="margin-top:0;color:var(--text-muted)">Gerencie sua empresa, usuários, API e faturas.</p>
+    <div style="display:grid;gap:0.75rem;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <a class="card card-pad" href="{% url 'admin_area_company' %}" style="display:block">
+        <div style="font-weight:700">Empresa</div>
+        <div style="color:var(--text-muted);font-size:0.9rem">Editar dados da empresa</div>
+      </a>
+      <a class="card card-pad" href="{% url 'admin_area_users' %}" style="display:block">
+        <div style="font-weight:700">Usuários</div>
+        <div style="color:var(--text-muted);font-size:0.9rem">Criar analistas e listar usuários</div>
+      </a>
+      <a class="card card-pad" href="{% url 'admin_area_api_key' %}" style="display:block">
+        <div style="font-weight:700">API Key</div>
+        <div style="color:var(--text-muted);font-size:0.9rem">Gerar/rotacionar chave da API</div>
+      </a>
+      <a class="card card-pad" href="{% url 'admin_area_invoices' %}" style="display:block">
+        <div style="font-weight:700">Faturas</div>
+        <div style="color:var(--text-muted);font-size:0.9rem">Ver status e vencimentos</div>
+      </a>
+    </div>
+  </section>
+{% endblock %}
+

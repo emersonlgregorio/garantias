@@ -294,6 +294,30 @@
       .map-insert-row-primary .btn-draw-wrap .btn { width: 100%; }
       .map-status-text { margin-left: 0; width: 100%; }
     }
+
+    /* Tela cheia (fallback sem Fullscreen API) */
+    #mapWrap.is-fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 20000 !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+      overflow: hidden !important;
+      background: #fff;
+    }
+    #mapWrap.is-fullscreen #map {
+      height: 100vh !important;
+      min-height: 100vh !important;
+    }
+    /* Quando o próprio container entra em fullscreen */
+    #mapWrap:fullscreen #map {
+      height: 100% !important;
+      min-height: 100% !important;
+    }
+    #mapWrap:-webkit-full-screen #map {
+      height: 100% !important;
+      min-height: 100% !important;
+    }
     #msg { color: var(--text-muted); line-height: 1.45; }
     #msg.ok { color: var(--accent, #1b6b4a); }
     #msg.err { color: #b42318; }
@@ -408,12 +432,17 @@
                 </div>
               </div>
             </div>
-            <button type="button" id="btnPrintMap" class="btn btn-ghost">Imprimir mapa</button>
+            <button
+              type="button"
+              id="btnPrintMap"
+              class="btn btn-ghost"
+              {% if not can_print_map %}disabled title="Seu plano atual não permite impressão (PDF)."{% endif %}
+            >Imprimir mapa</button>
           </div>
         </label>
       </div>
     </div>
-    <details id="mapInsertDetails" class="map-insert-details">
+    <details id="mapInsertDetails" class="map-insert-details" {% if not can_create_area %}style="opacity:0.6"{% endif %}>
       <summary class="map-insert-summary">Nova Matrícula</summary>
       <div class="map-insert-fields map-insert-row-primary">
         <label>
@@ -433,13 +462,14 @@
           <input id="areaColor" type="color" value="#3388ff" style="height:40px;width:52px;padding:2px;border:1px solid var(--border)">
         </label>
         <div class="btn-draw-wrap">
-          <button type="button" id="btnDraw" class="btn btn-primary" disabled>Desenhar polígono</button>
+          <button type="button" id="btnDraw" class="btn btn-primary" {% if not can_create_area %}disabled title="Limite do seu plano: apenas 1 matrícula."{% else %}disabled{% endif %}>Desenhar polígono</button>
         </div>
       </div>
       <div class="map-toolbar-row">
         <button type="button" id="btnImportGeo" class="btn btn-ghost">Importar matrícula</button>
         <input type="file" id="importGeoFile" accept=".kml,.kmz,.zip,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/zip" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" tabindex="-1" aria-hidden="true">
         <button type="button" id="btnReload" class="btn btn-ghost">Recarregar áreas</button>
+        <button type="button" id="btnFullscreen" class="btn btn-ghost" title="Alternar tela cheia">Tela cheia</button>
         <button type="button" id="btnMapTip" class="btn btn-ghost" title="Clique para ver as dicas completas" aria-label="Abrir dicas de uso" aria-haspopup="dialog">ⓘ</button>
         <span id="mapStatus" class="map-status-text" aria-live="polite">Status: —</span>
       </div>
@@ -540,7 +570,7 @@
     </div>
   </div>
 
-  <section class="card" style="overflow:hidden;position:relative">
+  <section class="card" id="mapWrap" style="overflow:hidden;position:relative">
     <div id="map" style="height:70vh;min-height:520px;width:100%"></div>
     <div id="mapEditBanner" aria-live="polite">
       <span style="color:var(--text-muted)">Arraste os <strong>pontos</strong> ou os marcadores no <strong>meio da borda</strong> para ajustar o formato</span>
@@ -561,6 +591,7 @@
     const API = "{{ api_root }}";
     const MAP_PRINT_PDF_URL = "{{ map_print_pdf_url|escapejs }}";
     const mapProvider = "{{ map_provider|escapejs }}";
+    const CAN_CREATE_AREA = {{ can_create_area|yesno:"true,false" }};
 
     const MAP_TIP_TEXT =
       'Matrícula e hectares são obrigatórios para desenhar ou importar geometria. Formatos de importação: .kml, .kmz ou .zip do shapefile. ' +
@@ -608,6 +639,50 @@
       const n = parseFloat(raw, 10);
       if (isNaN(n) || n <= 0) return { ok: false };
       return { ok: true, value: n };
+    }
+
+    // -------------------- Tela cheia --------------------
+    const mapWrap = document.getElementById('mapWrap');
+    const btnFullscreen = document.getElementById('btnFullscreen');
+    function isFullscreenActive() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement || (mapWrap && mapWrap.classList.contains('is-fullscreen')));
+    }
+    function syncFullscreenUI() {
+      if (!btnFullscreen) return;
+      const on = isFullscreenActive();
+      btnFullscreen.textContent = on ? 'Sair da tela cheia' : 'Tela cheia';
+      btnFullscreen.title = on ? 'Sair da tela cheia' : 'Alternar tela cheia';
+      try { map.invalidateSize(false); } catch (e1) { /* ignore */ }
+    }
+    async function toggleFullscreen() {
+      if (!mapWrap) return;
+      const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      // Se a API existir, preferir fullscreen real do navegador
+      if (!on && mapWrap.requestFullscreen) {
+        await mapWrap.requestFullscreen();
+        return;
+      }
+      if (!on && mapWrap.webkitRequestFullscreen) {
+        mapWrap.webkitRequestFullscreen();
+        return;
+      }
+      if (on && document.exitFullscreen) {
+        await document.exitFullscreen();
+        return;
+      }
+      if (on && document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+        return;
+      }
+      // Fallback: simular via CSS
+      mapWrap.classList.toggle('is-fullscreen');
+      setTimeout(syncFullscreenUI, 80);
+    }
+    if (btnFullscreen) {
+      btnFullscreen.onclick = function () { toggleFullscreen(); };
+      document.addEventListener('fullscreenchange', syncFullscreenUI);
+      document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
+      syncFullscreenUI();
     }
 
     // preferCanvas: html2canvas desloca camadas vetoriais em SVG em relação aos tiles;
@@ -693,7 +768,7 @@
     const areaHectaresInput = document.getElementById('areaHectares');
     function syncDrawButtonState() {
       const ha = parseHectaresFormValue();
-      btnDraw.disabled = !areaMatriculaInput.value.trim() || !ha.ok;
+      btnDraw.disabled = !CAN_CREATE_AREA || !areaMatriculaInput.value.trim() || !ha.ok;
     }
     areaMatriculaInput.addEventListener('input', syncDrawButtonState);
     areaMatriculaInput.addEventListener('change', syncDrawButtonState);
@@ -713,6 +788,10 @@
 
     btnDraw.onclick = function () {
       if (btnDraw.disabled) {
+        if (!CAN_CREATE_AREA) {
+          showMsg('Limite do seu plano: não é possível cadastrar mais matrículas.', false);
+          return;
+        }
         showMsg('Informe matrícula e hectares válidos antes de desenhar.', false);
         return;
       }
@@ -1630,6 +1709,10 @@
     });
 
     document.getElementById('btnImportGeo').onclick = function () {
+      if (!CAN_CREATE_AREA) {
+        showMsg('Limite do seu plano: não é possível cadastrar mais matrículas.', false);
+        return;
+      }
       document.getElementById('importGeoFile').click();
     };
 
@@ -1742,7 +1825,7 @@
         const g = rows[j];
         const o = document.createElement('option');
         o.value = String(g.id);
-        const t = (g.type != null ? String(g.type) : 'Garantia') + ' #' + g.id + ' — ' + (g.status || '');
+        const t = (g.type != null ? String(g.type) : 'Garantia') + ' #' + g.id + ' — ' + (g.status_display || g.status || '');
         o.textContent = t;
         gsel.appendChild(o);
       }
@@ -1773,6 +1856,7 @@
     });
 
     document.getElementById('btnPrintMap').onclick = function () {
+      if (document.getElementById('btnPrintMap').disabled) return;
       openMapPrintModal();
     };
 

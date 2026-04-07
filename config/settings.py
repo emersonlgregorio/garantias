@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "apps.guarantees",
     "apps.crops",
     "apps.billing",
+    "apps.masterdata",
 ]
 
 MIDDLEWARE = [
@@ -154,8 +155,9 @@ MAP_LABELS_ATTRIBUTION = env.str(
 MAP_LABELS_OPACITY = env.float("MAP_LABELS_OPACITY", default=1.0)
 
 LOGIN_URL = "/accounts/login/"
+# Após login, retornar para a landing para conduzir ao pricing/onboarding.
 LOGIN_REDIRECT_URL = "/dashboard/"
-LOGOUT_REDIRECT_URL = "/accounts/login/"
+LOGOUT_REDIRECT_URL = "/"
 
 if DEBUG:
     STORAGES["staticfiles"] = {

@@ -1,7 +1,7 @@
 {% extends "app/base.html" %}
 {% block page_title %}Garantias{% endblock %}
 {% block top_actions %}
-  <a class="btn btn-primary" href="{% url 'app_guarantees_new' %}">Nova garantia</a>
+  <a class="btn btn-primary" href="{% url 'app_guarantees_new' %}" {% if not can_create %}aria-disabled="true" style="pointer-events:none;opacity:0.55"{% endif %}>Nova garantia</a>
 {% endblock %}
 {% block content %}
   <section class="card card-pad">
@@ -27,7 +27,7 @@
               <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ g.property.description }} — {{ g.property.city }}</td>
               <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ g.value }}</td>
               <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ g.issue_date|date:"d/m/Y" }}</td>
-              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ g.status }}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ g.get_status_display }}</td>
               <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ g.areas.count }}</td>
               <td style="padding:0.7rem;border-bottom:1px solid var(--border);text-align:right">
                 <a class="btn btn-ghost" style="padding:0.45rem 0.7rem" href="{% url 'app_guarantees_edit' g.id %}">Editar</a>

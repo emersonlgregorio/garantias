@@ -1,0 +1,38 @@
+{% extends "app/base.html" %}
+{% block page_title %}Moedas{% endblock %}
+{% block top_actions %}
+  <a class="btn btn-primary" href="{% url 'app_currencies_new' %}">Nova moeda</a>
+{% endblock %}
+{% block content %}
+  <section class="card card-pad">
+    <div style="overflow:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:720px">
+        <thead>
+          <tr style="text-align:left;color:var(--text-muted);font-size:0.85rem">
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Código</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Nome</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Símbolo</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)">Ativo</th>
+            <th style="padding:0.6rem;border-bottom:1px solid var(--border)"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in currencies %}
+            <tr>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)"><strong>{{ c.code }}</strong></td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ c.name }}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{{ c.symbol }}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border)">{% if c.is_active %}Sim{% else %}Não{% endif %}</td>
+              <td style="padding:0.7rem;border-bottom:1px solid var(--border);text-align:right">
+                <a class="btn btn-ghost" style="padding:0.45rem 0.7rem" href="{% url 'app_currencies_edit' c.id %}">Editar</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" style="padding:1rem;color:var(--text-muted)">Nenhuma moeda cadastrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+
