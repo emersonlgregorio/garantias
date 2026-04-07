@@ -1,0 +1,45 @@
+# Produção — imagem Docker Hub: emersonlgregorio/garantias:latest
+#
+# 1) cp .env.production.example .env.production
+# 2) Edite senhas, DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS, CORS, DATABASE_URL
+# 3) docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Gunicorn está no requirements.txt; faça rebuild/push da imagem se o :latest ainda não o incluir.
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-garantias}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-garantias}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: ${GARANTIAS_IMAGE:-emersonlgregorio/garantias:latest}
+    restart: unless-stopped
+    command: >
+      sh -c "until pg_isready -h db -p 5432 -U \"$${POSTGRES_USER}\"; do sleep 1; done &&
+             python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers $${GUNICORN_WORKERS:-3} --timeout $${GUNICORN_TIMEOUT:-120} --access-logfile - --error-logfile -"
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-garantias}
+      DJANGO_DEBUG: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata_prod: {}
