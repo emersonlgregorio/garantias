@@ -1,9 +1,11 @@
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 import dj_database_url
 import environ
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -71,10 +73,50 @@ TEMPLATES = [
     },
 ]
 
-DATABASE_URL = env("DATABASE_URL", default="postgres://garantias:garantias@db:5432/garantias")
-_db = dj_database_url.parse(DATABASE_URL)
-_db["ENGINE"] = "django.contrib.gis.db.backends.postgis"
-DATABASES = {"default": _db}
+def _build_database_url_from_parts():
+    """Monta postgres:// com user/senha/nome do DB codificados (evita ParseError com [ ] ; @ etc.)."""
+    user = env("POSTGRES_USER", default="garantias")
+    password = env("POSTGRES_PASSWORD", default="garantias")
+    host = env("POSTGRES_HOST", default="db")
+    port = env("POSTGRES_PORT", default="5432")
+    name = env("POSTGRES_DB", default="garantias")
+
+    def enc(part):
+        return quote(str(part), safe="")
+
+    return f"postgres://{enc(user)}:{enc(password)}@{host}:{port}/{enc(name)}"
+
+
+def _resolve_database():
+    raw = os.environ.get("DATABASE_URL")
+    if raw is not None:
+        raw = raw.strip().strip('"').strip("'")
+    else:
+        raw = ""
+
+    candidates = []
+    if raw:
+        candidates.append(raw)
+    candidates.append(_build_database_url_from_parts())
+    candidates.append("postgres://garantias:garantias@db:5432/garantias")
+
+    last_err = None
+    for url in candidates:
+        try:
+            cfg = dj_database_url.parse(url)
+            cfg["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+            return cfg
+        except dj_database_url.ParseError as e:
+            last_err = e
+            continue
+
+    raise ImproperlyConfigured(
+        "Não foi possível interpretar DATABASE_URL. Use senha codificada na URL (ex.: @ → %40) "
+        "ou defina POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST e POSTGRES_PORT."
+    ) from last_err
+
+
+DATABASES = {"default": _resolve_database()}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
