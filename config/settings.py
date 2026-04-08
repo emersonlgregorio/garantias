@@ -94,10 +94,20 @@ def _resolve_database():
     else:
         raw = ""
 
-    candidates = []
-    if raw:
-        candidates.append(raw)
-    candidates.append(_build_database_url_from_parts())
+    built = _build_database_url_from_parts()
+    # Senha definida no mesmo .env que o serviço `db` → usar URL montada primeiro.
+    # Evita: DATABASE_URL sintaticamente válida com senha antiga/errada “ganhar” do POSTGRES_PASSWORD.
+    pwd_from_env = (os.environ.get("POSTGRES_PASSWORD") or "").strip()
+    if pwd_from_env:
+        candidates = [built]
+        if raw:
+            candidates.append(raw)
+    else:
+        candidates = []
+        if raw:
+            candidates.append(raw)
+        candidates.append(built)
+
     candidates.append("postgres://garantias:garantias@db:5432/garantias")
 
     last_err = None
