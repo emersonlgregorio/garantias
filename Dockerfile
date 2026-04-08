@@ -1,3 +1,6 @@
+# Imagem única: serve para build/push (produção) e para `docker compose` local.
+# O docker-compose.yml de desenvolvimento sobrescreve o CMD (runserver + migrate).
+# Em produção, o docker-compose.prod.yml usa Gunicorn explicitamente no command.
 FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -28,4 +31,5 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Padrão para `docker run` / Hub: WSGI. Dev local usa `command:` no docker-compose.yml.
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

@@ -3,6 +3,9 @@
 __pycache__
 *.pyc
 .env
+.env.production
+.env.*.local
 staticfiles
 media
 .pytest_cache
+postgres-data
